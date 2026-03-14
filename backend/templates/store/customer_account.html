@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Minha conta</title><link rel="stylesheet" href="/css/style.css"></head>
+<body>
+  <main class="container section account-shell">
+    <h1>Minha conta</h1>
+    <nav class="account-links"><a href="/minha-conta">Minha conta</a><a href="/meus-pedidos">Meus pedidos</a><a href="/meus-enderecos">Meus endereços</a><a href="/conta/sair">Sair</a></nav>
+    <form id="customer-profile-form" class="account-form grid-2">
+      <label>Nome completo<input name="nome_completo" required></label>
+      <label>E-mail<input type="email" name="email" required></label>
+      <label>Telefone<input name="telefone" required></label>
+      <label>CPF<input name="cpf"></label>
+      <label class="full-width"><input type="checkbox" name="aceita_marketing"> Aceito receber novidades</label>
+      <button class="btn full-width" type="submit">Salvar alterações</button>
+      <p id="form-message" class="full-width"></p>
+    </form>
+  </main>
+  <script src="/js/customer.js"></script>
+</body></html>

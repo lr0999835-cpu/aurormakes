@@ -269,6 +269,7 @@ def _normalize_order_payload(payload):
         "customer_name": (payload.get("customer_name") or payload.get("customerName") or "").strip(),
         "customer_phone": (payload.get("customer_phone") or payload.get("customerPhone") or "").strip(),
         "customer_address": (payload.get("customer_address") or payload.get("customerAddress") or "").strip(),
+        "customer_id": int(payload.get("customer_id") or payload.get("customerId") or 0) or None,
         "items": items,
         "source": source,
         "external_order_id": (payload.get("external_order_id") or payload.get("externalOrderId") or "").strip(),
@@ -343,6 +344,7 @@ def create_order(company_id, payload):
                 customer_name,
                 customer_phone,
                 customer_address,
+                customer_id,
                 total,
                 status,
                 source,
@@ -358,13 +360,14 @@ def create_order(company_id, payload):
                 shipping_status,
                 internal_notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 int(company_id),
                 data["customer_name"],
                 data["customer_phone"],
                 data["customer_address"],
+                data["customer_id"],
                 total,
                 "pending",
                 data["source"],
@@ -567,7 +570,7 @@ def create_checkout(company_id, payload):
     return refreshed_order
 
 
-def list_orders(company_id, limit=None, source=None, status=None, payment_status=None, shipping_status=None, customer_phone=None):
+def list_orders(company_id, limit=None, source=None, status=None, payment_status=None, shipping_status=None, customer_phone=None, customer_id=None):
     query = "SELECT * FROM orders WHERE company_id = ?"
     params = [int(company_id)]
     
@@ -586,6 +589,9 @@ def list_orders(company_id, limit=None, source=None, status=None, payment_status
     if customer_phone:
         query += " AND customer_phone = ?"
         params.append(customer_phone)
+    if customer_id:
+        query += " AND customer_id = ?"
+        params.append(int(customer_id))
 
     query += " ORDER BY created_at DESC, id DESC"
 

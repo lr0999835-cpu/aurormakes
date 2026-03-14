@@ -7,6 +7,7 @@ from config import DEBUG, PROJECT_ROOT, SECRET_KEY
 from database import init_db
 from locale_utils import BRAZIL_TZ, format_brl, format_date_br, format_datetime_br, format_time_br
 from routes.admin import admin_bp
+from routes.customers import customers_bp
 from routes.operations import operations_bp
 from routes.products import products_bp
 
@@ -38,6 +39,7 @@ def create_app():
     app.register_blueprint(products_bp)
     app.register_blueprint(operations_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(customers_bp)
 
 
     @app.errorhandler(403)

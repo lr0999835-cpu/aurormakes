@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Criar conta | Aurora Makes</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <main class="container section account-shell">
+    <h1>Criar conta</h1>
+    <form id="customer-register-form" class="account-form grid-2">
+      <label>Nome completo<input name="nome_completo" required></label>
+      <label>E-mail<input type="email" name="email" required></label>
+      <label>Telefone<input name="telefone" required></label>
+      <label>CPF<input name="cpf"></label>
+      <label>Data de nascimento<input type="date" name="data_nascimento"></label>
+      <label>Gênero<input name="genero"></label>
+      <label>Senha<input type="password" name="senha" required></label>
+      <label>Confirmar senha<input type="password" name="confirmar_senha" required></label>
+      <label class="full-width"><input type="checkbox" name="aceita_marketing"> Quero receber ofertas e novidades por e-mail</label>
+      <button class="btn full-width" type="submit">Criar conta</button>
+      <p class="full-width">Já tem conta? <a href="/conta/entrar">Entrar</a></p>
+      <p id="form-message" class="full-width"></p>
+    </form>
+  </main>
+  <script src="/js/customer.js"></script>
+</body>
+</html>

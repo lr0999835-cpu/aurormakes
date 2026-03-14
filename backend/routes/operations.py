@@ -1,7 +1,7 @@
 from flask import Blueprint, g, jsonify, request
 import logging
 
-from auth import api_auth_required, tenant_for_request
+from auth import api_auth_required, load_current_customer, tenant_for_request
 from services import (
     create_checkout,
     create_order,
@@ -92,6 +92,9 @@ def sold_products():
 def post_checkout():
     payload = request.get_json(silent=True) or {}
     payload.setdefault("source", "aurora_makes")
+    customer = load_current_customer()
+    if customer:
+        payload["customer_id"] = customer["id"]
     company_id = tenant_for_request()
     if not company_id:
         return jsonify({"error": "Empresa inválida"}), 400
