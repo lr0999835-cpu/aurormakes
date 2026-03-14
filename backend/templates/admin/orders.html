@@ -77,7 +77,7 @@
       <div class="details-grid">
         <div class="details-group">
           <h3>Informações do pedido</h3>
-          <p><strong>Data:</strong> {{ selected_order.created_at or '-' }}</p>
+          <p><strong>Data:</strong> {{ selected_order.created_at|datetime_br }}</p>
           <p><strong>Status do pedido:</strong> {{ selected_order.status or '-' }}</p>
           <p><strong>Status de pagamento:</strong> {{ selected_order.payment_status or '-' }}</p>
           <p><strong>Método de pagamento:</strong> {{ selected_order.payment_method or '-' }}</p>
@@ -110,6 +110,30 @@
           <p><strong>Total do pedido:</strong> R$ {{ '%.2f'|format(selected_order.total or 0) }}</p>
         </div>
 
+
+        <div class="details-group">
+          <h3>Pagamento e gateway</h3>
+          <p><strong>ID da transação:</strong> {{ selected_order.transaction_id or (selected_order.payment.transaction_id if selected_order.payment else '-') }}</p>
+          <p><strong>Aprovação:</strong> {{ selected_order.approved_at|datetime_br }}</p>
+          <p><strong>Cancelamento:</strong> {{ selected_order.cancelled_at|datetime_br }}</p>
+          {% if selected_order.payment %}
+            {% if selected_order.payment.payment_method == 'pix' and selected_order.payment.status in ['pendente','aguardando_pagamento'] %}
+              <p><strong>PIX copia e cola:</strong> {{ selected_order.payment.pix_copy_paste or '-' }}</p>
+            {% endif %}
+            {% if selected_order.payment.payment_method == 'boleto' and selected_order.payment.status in ['pendente','aguardando_pagamento'] %}
+              <p><strong>Linha digitável:</strong> {{ selected_order.payment.boleto_barcode or '-' }}</p>
+              {% if selected_order.payment.boleto_url %}<p><a class="btn" href="{{ selected_order.payment.boleto_url }}" target="_blank">Visualizar boleto</a></p>{% endif %}
+            {% endif %}
+          {% endif %}
+          <h4>Histórico</h4>
+          <ul>
+          {% for event in selected_order.payment_events %}
+            <li>{{ event.created_at|datetime_br }} — {{ event.event_type }} / {{ event.status }}</li>
+          {% else %}
+            <li class="muted">Sem eventos de pagamento.</li>
+          {% endfor %}
+          </ul>
+        </div>
         <div class="details-group">
           <h3>Informações operacionais</h3>
           <p><strong>Notas internas:</strong> {{ selected_order.internal_notes or '-' }}</p>

@@ -37,6 +37,7 @@ from services import (
     update_product,
     update_product_stock,
 )
+from payment_services.payments.service import list_recent_payments, payment_totals
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 VALID_ROLES = tuple(ROLE_PERMISSIONS.keys())
@@ -468,6 +469,25 @@ def admin_orders():
         payment_statuses=PAYMENT_STATUSES,
         shipping_statuses=SHIPPING_STATUSES,
         filters=filters,
+    )
+
+
+@admin_bp.get("/payments")
+@permission_required("orders:read")
+def admin_payments():
+    company_id = g.current_user["company_id"]
+    status = (request.args.get("status") or "").strip().lower() or None
+    method = (request.args.get("method") or "").strip().lower() or None
+    query = (request.args.get("q") or "").strip() or None
+    payments = list_recent_payments(company_id, status=status, method=method, q=query, limit=200)
+    totals = payment_totals(company_id)
+    return render_template(
+        "admin/payments.html",
+        payments=payments,
+        totals=totals,
+        filters={"status": status or "", "method": method or "", "q": query or ""},
+        statuses=["pendente", "aguardando_pagamento", "pago", "aprovado", "recusado", "cancelado", "estornado", "expirado"],
+        methods=["pix", "cartao", "boleto"],
     )
 
 

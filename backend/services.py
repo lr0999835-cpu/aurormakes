@@ -4,12 +4,13 @@ import logging
 
 from database import get_connection
 from models import Order, Product
+from payment_services.payments.service import create_payment_for_order, get_payment_events
 
 
 REQUIRED_FIELDS = ["name", "category", "price", "cost", "stock", "sku"]
 ORDER_STATUSES = ["novo", "pendente", "em_aprovacao", "aprovado", "separando", "enviado", "entregue", "cancelado", "pending", "paid", "preparing", "ready_to_ship", "shipped", "delivered", "cancelled"]
 ORDER_SOURCES = ["aurora_makes", "shopee", "marketplace", "manual"]
-PAYMENT_STATUSES = ["pending", "paid", "refunded", "failed"]
+PAYMENT_STATUSES = ["pendente", "aguardando_pagamento", "pago", "aprovado", "recusado", "cancelado", "estornado", "expirado", "pending", "paid", "refunded", "failed"]
 SHIPPING_STATUSES = ["pending", "ready_to_ship", "shipped", "delivered", "returned"]
 LOW_STOCK_LIMIT = 3
 
@@ -256,7 +257,7 @@ def _normalize_order_payload(payload):
     if source not in ORDER_SOURCES:
         source = "marketplace"
 
-    payment_status = (payload.get("payment_status") or "pending").strip().lower()
+    payment_status = (payload.get("payment_status") or payload.get("paymentStatus") or "pendente").strip().lower()
     if payment_status not in PAYMENT_STATUSES:
         payment_status = "pending"
 
@@ -272,7 +273,10 @@ def _normalize_order_payload(payload):
         "source": source,
         "external_order_id": (payload.get("external_order_id") or payload.get("externalOrderId") or "").strip(),
         "payment_status": payment_status,
-        "payment_method": (payload.get("payment_method") or payload.get("paymentMethod") or "").strip(),
+        "payment_method": (payload.get("payment_method") or payload.get("paymentMethod") or "pix").strip().lower(),
+        "subtotal": float(payload.get("subtotal") or 0),
+        "shipping_amount": float(payload.get("shipping_amount") or payload.get("shippingAmount") or 0),
+        "discount_amount": float(payload.get("discount_amount") or payload.get("discountAmount") or 0),
         "shipping_method": (payload.get("shipping_method") or "").strip(),
         "shipping_tracking_code": (payload.get("shipping_tracking_code") or "").strip(),
         "shipping_label_url": (payload.get("shipping_label_url") or "").strip(),
@@ -327,6 +331,11 @@ def create_order(company_id, payload):
                 }
             )
 
+        subtotal_value = total
+        if data["subtotal"] > 0:
+            subtotal_value = data["subtotal"]
+            total = subtotal_value + data["shipping_amount"] - data["discount_amount"]
+
         order_cursor = conn.execute(
             """
             INSERT INTO orders (
@@ -340,13 +349,16 @@ def create_order(company_id, payload):
                 external_order_id,
                 payment_status,
                 payment_method,
+                subtotal,
+                shipping_amount,
+                discount_amount,
                 shipping_method,
                 shipping_tracking_code,
                 shipping_label_url,
                 shipping_status,
                 internal_notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 int(company_id),
@@ -359,6 +371,9 @@ def create_order(company_id, payload):
                 data["external_order_id"],
                 data["payment_status"],
                 data["payment_method"],
+                subtotal_value,
+                data["shipping_amount"],
+                data["discount_amount"],
                 data["shipping_method"],
                 data["shipping_tracking_code"],
                 data["shipping_label_url"],
@@ -523,25 +538,33 @@ def register_payment_event(company_id, payload):
 
 def create_checkout(company_id, payload):
     normalized = _normalize_order_payload(payload)
-    if normalized["payment_status"] == "pending":
-        normalized["payment_status"] = "paid"
-
     order = create_order(company_id, normalized)
 
-    payment_id = (payload.get("payment_id") or payload.get("paymentId") or f"manual_{order['id']}").strip()
-    payment_payload = {
-        "payment_id": payment_id,
-        "order_id": order["id"],
-        "amount": order["total"],
-        "status": normalized["payment_status"],
-        "payment_method": normalized["payment_method"] or "manual",
-        "source": normalized["source"],
-        "customer_phone": normalized["customer_phone"],
-        "order": normalized,
+    customer = {
+        "name": normalized["customer_name"],
+        "phone": normalized["customer_phone"],
+        "email": payload.get("customer_email") or payload.get("customerEmail") or "",
     }
-    register_payment_event(company_id, payment_payload)
-    logger.info("Checkout concluído com sucesso. order_id=%s payment_id=%s source=%s", order["id"], payment_id, normalized["source"])
-    return get_order(company_id, order["id"])
+    card_data = payload.get("card") if isinstance(payload.get("card"), dict) else None
+    payment_method = normalized["payment_method"] or "pix"
+
+    payment_result = create_payment_for_order(company_id, order, payment_method, customer, card_data=card_data)
+    if not payment_result.get("success") and normalized.get("payment_status") in {"paid", "pago", "aprovado"}:
+        register_payment_event(company_id, {
+            "payment_id": f"compat_{order['id']}",
+            "order_id": order["id"],
+            "amount": order["total"],
+            "status": "paid",
+            "payment_method": payment_method,
+            "customer_phone": normalized["customer_phone"],
+        })
+    logger.info("Checkout concluído. order_id=%s metodo=%s sucesso=%s", order["id"], payment_method, payment_result["success"])
+
+    refreshed_order = get_order(company_id, order["id"])
+    refreshed_order["payment"] = payment_result.get("payment")
+    refreshed_order["payment_events"] = get_payment_events(company_id, order["id"])
+    refreshed_order["checkout_message"] = payment_result.get("message")
+    return refreshed_order
 
 
 def list_orders(company_id, limit=None, source=None, status=None, payment_status=None, shipping_status=None, customer_phone=None):
@@ -606,6 +629,23 @@ def get_order(company_id, order_id):
         }
         for row in item_rows
     ]
+
+    with get_connection() as conn:
+        payment_row = conn.execute("SELECT * FROM payments WHERE company_id = ? AND order_id = ? ORDER BY id DESC LIMIT 1", (int(company_id), order_id)).fetchone()
+    if payment_row:
+        order["payment"] = {
+            "payment_id": payment_row["payment_id"],
+            "transaction_id": payment_row["transaction_id"] if "transaction_id" in payment_row.keys() else "",
+            "status": payment_row["status"],
+            "payment_method": payment_row["payment_method"],
+            "pix_qr_code": payment_row["pix_qr_code"] if "pix_qr_code" in payment_row.keys() else "",
+            "pix_copy_paste": payment_row["pix_copy_paste"] if "pix_copy_paste" in payment_row.keys() else "",
+            "boleto_barcode": payment_row["boleto_barcode"] if "boleto_barcode" in payment_row.keys() else "",
+            "boleto_url": payment_row["boleto_url"] if "boleto_url" in payment_row.keys() else "",
+            "expires_at": payment_row["expires_at"] if "expires_at" in payment_row.keys() else "",
+            "approved_at": payment_row["approved_at"] if "approved_at" in payment_row.keys() else "",
+        }
+    order["payment_events"] = get_payment_events(company_id, order_id)
     return order
 
 

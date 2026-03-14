@@ -1,0 +1,44 @@
+{% extends 'admin/_layout.html' %}
+{% block title %}Admin | Financeiro{% endblock %}
+{% block content %}
+<h1 class="section-title">Pagamentos</h1>
+<section class="card" style="margin-bottom:16px;">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
+    <div><strong>Total pago:</strong><br> {{ totals.pago|brl }}</div>
+    <div><strong>Total pendente:</strong><br> {{ totals.pendente|brl }}</div>
+    <div><strong>Total recusado:</strong><br> {{ totals.recusado|brl }}</div>
+    <div><strong>Total cancelado:</strong><br> {{ totals.cancelado|brl }}</div>
+    <div><strong>Pagos hoje:</strong><br> {{ totals.pedidos_pagos_hoje }}</div>
+    <div><strong>Pagos no mês:</strong><br> {{ totals.pedidos_pagos_mes }}</div>
+  </div>
+</section>
+<section class="card" style="margin-bottom:16px;">
+  <form method="get" style="display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:8px;">
+    <select name="method"><option value="">Método</option>{% for m in methods %}<option value="{{m}}" {% if filters.method==m %}selected{% endif %}>{{m}}</option>{% endfor %}</select>
+    <select name="status"><option value="">Status</option>{% for s in statuses %}<option value="{{s}}" {% if filters.status==s %}selected{% endif %}>{{s}}</option>{% endfor %}</select>
+    <input type="text" name="q" value="{{ filters.q }}" placeholder="Buscar pedido # ou transaction_id">
+    <button class="btn" type="submit">Filtrar</button>
+  </form>
+</section>
+<section class="card">
+  <table>
+    <thead><tr><th>Pedido</th><th>Cliente</th><th>Método</th><th>Status</th><th>Total</th><th>Transação</th><th>Criado</th><th>Aprovado</th></tr></thead>
+    <tbody>
+      {% for p in payments %}
+      <tr>
+        <td>#{{ p.order_number or '-' }}</td>
+        <td>{{ p.customer_name or '-' }}</td>
+        <td>{{ p.payment_method }}</td>
+        <td>{{ p.status }}</td>
+        <td>{{ p.amount|brl }}</td>
+        <td>{{ p.transaction_id or p.payment_id }}</td>
+        <td>{{ p.created_at|datetime_br }}</td>
+        <td>{{ p.approved_at|datetime_br }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8">Nenhum pagamento encontrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
