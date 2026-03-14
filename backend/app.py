@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, abort, render_template, send_from_directory
 
 from config import DEBUG, PROJECT_ROOT, SECRET_KEY
@@ -48,4 +50,5 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    app.run(host="0.0.0.0", port=5000, debug=DEBUG)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=DEBUG)
