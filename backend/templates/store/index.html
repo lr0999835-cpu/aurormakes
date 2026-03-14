@@ -218,31 +218,47 @@
     <section class="hero-banner" aria-label="Campanhas em destaque">
       <button class="carousel-arrow prev" type="button" data-target="hero" aria-label="Banner anterior">←</button>
       <div class="hero-slider" id="hero-track">
-        <article class="hero-slide active" data-slide>
-          <div class="container hero-content">
-            <div class="hero-copy">
-              <p class="hero-kicker">Conheça os</p>
-              <h1><span>ESFOLIANTES PORÁN</span></h1>
-              <p>O segredo para uma pele <strong>sedosa &amp; macia!</strong></p>
-              <a href="produtos.html" class="btn">SAIBA MAIS</a>
+        <article class="hero-slide active" data-slide data-banner-key="esfoliantes">
+          <div class="hero-layout container">
+            <div class="hero-visual">
+              <img class="hero-image" src="images/banners/esfoliantes-poran.svg" alt="Esfoliantes Porán com textura cremosa para pele macia" fetchpriority="high">
             </div>
-            <div class="hero-art hero-art-esfoliantes" aria-hidden="true">
-              <span></span><span></span><span></span><span></span>
+            <div class="hero-copy">
+              <h1>Esfoliantes Porán</h1>
+              <p>Descubra o ritual para uma pele sedosa, luminosa e pronta para qualquer ocasião.</p>
+              <a href="produtos.html?categoria=esfoliantes" class="btn hero-cta" aria-label="Clique e confira a campanha Esfoliantes Porán">CLIQUE E CONFIRA</a>
             </div>
           </div>
         </article>
 
-        <article class="hero-slide" data-slide>
-          <div class="container hero-content hero-content-pink">
-            <div class="hero-copy hero-copy-invert">
-              <h2>BODY SPLASH<br><em>Rose Essence</em></h2>
-              <p>ENCANTADOR</p>
-              <a href="produtos.html" class="btn btn-rose">ÓTIMA FIXAÇÃO</a>
+        <article class="hero-slide" data-slide data-banner-key="body-splash">
+          <div class="hero-layout container">
+            <div class="hero-visual">
+              <img class="hero-image" src="images/banners/body-splash-rose-essence.svg" alt="Body Splash Rose Essence com notas florais e fixação prolongada" loading="lazy">
+            </div>
+            <div class="hero-copy">
+              <h2>Body Splash Rose Essence</h2>
+              <p>Fragrância encantadora com ótima fixação para acompanhar sua rotina o dia todo.</p>
+              <a href="produtos.html?categoria=body-splash" class="btn hero-cta" aria-label="Clique e confira a campanha Body Splash Rose Essence">CLIQUE E CONFIRA</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="hero-slide" data-slide data-banner-key="choco-fun">
+          <div class="hero-layout container">
+            <div class="hero-visual">
+              <img class="hero-image" src="images/banners/choco-fun-batom-matte.svg" alt="Linha Choco Fun com batom efeito matte" loading="lazy">
+            </div>
+            <div class="hero-copy">
+              <h2>Batom efeito Matte</h2>
+              <p>Alta pigmentação e acabamento aveludado para destacar seus lábios em segundos.</p>
+              <a href="produtos.html?categoria=batom" class="btn hero-cta" aria-label="Clique e confira a coleção de batons matte">CLIQUE E CONFIRA</a>
             </div>
           </div>
         </article>
       </div>
       <button class="carousel-arrow next" type="button" data-target="hero" aria-label="Próximo banner">→</button>
+      <div class="hero-dots" id="hero-dots" aria-label="Navegação dos banners"></div>
     </section>
 
     <section class="container section category-section">

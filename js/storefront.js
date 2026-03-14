@@ -33,8 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const productsTrack = document.getElementById("home-products");
   const heroTrack = document.getElementById("hero-track");
   const heroDots = document.getElementById("hero-dots");
-  const heroSlideTemplate = document.getElementById("hero-slide-template");
-  const heroSlides = [];
+  const heroSlides = heroTrack ? Array.from(heroTrack.querySelectorAll("[data-slide]")) : [];
   let heroAutoPlayInterval;
   const megaItems = Array.from(document.querySelectorAll(".mega-item"));
   const mobileNav = document.getElementById("mobile-nav-drawer");
@@ -42,39 +41,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const closeMobileNavBtn = document.querySelector("[data-mobile-nav-close]");
 
   const scrollAmount = (track) => Math.max(260, Math.round(track.clientWidth * 0.78));
-
-  const buildHeroSlides = () => {
-    if (!heroTrack || !heroSlideTemplate) {
-      return;
-    }
-
-    const fragment = document.createDocumentFragment();
-
-    heroBannerData.forEach((banner, index) => {
-      const slideNode = heroSlideTemplate.content.cloneNode(true);
-      const slide = slideNode.querySelector("[data-slide]");
-      const image = slideNode.querySelector(".hero-image");
-      const title = slideNode.querySelector("[data-hero-title]");
-      const subtitle = slideNode.querySelector("[data-hero-subtitle]");
-      const cta = slideNode.querySelector("[data-hero-cta]");
-
-      slide.dataset.bannerKey = banner.key;
-      image.src = banner.image;
-      image.alt = banner.alt;
-      image.loading = index === 0 ? "eager" : "lazy";
-      title.textContent = banner.title;
-      subtitle.textContent = banner.subtitle;
-      cta.textContent = banner.button_text;
-      cta.href = banner.button_url;
-      cta.setAttribute("aria-label", `${banner.button_text}: ${banner.title}`);
-
-      fragment.appendChild(slideNode);
-    });
-
-    heroTrack.innerHTML = "";
-    heroTrack.appendChild(fragment);
-    heroSlides.push(...heroTrack.querySelectorAll("[data-slide]"));
-  };
 
   const buildHeroDots = () => {
     if (!heroDots) {
@@ -122,14 +88,13 @@ document.addEventListener("DOMContentLoaded", () => {
     heroAutoPlayInterval = window.setInterval(() => {
       const activeIndex = Number(heroTrack.dataset.activeSlide || 0);
       setHeroSlide(activeIndex + 1);
-    }, 7000);
+    }, 5000);
   };
 
   const stopHeroAutoplay = () => {
     clearInterval(heroAutoPlayInterval);
   };
 
-  buildHeroSlides();
   buildHeroDots();
 
   document.querySelectorAll(".carousel-arrow").forEach((button) => {
