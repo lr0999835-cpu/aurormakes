@@ -12,16 +12,19 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from database import get_connection, init_db
+from database import (
+    DEFAULT_ADMIN_EMAIL,
+    DEFAULT_ADMIN_PASSWORD,
+    DEFAULT_ADMIN_ROLE,
+    DEFAULT_ADMIN_USERNAME,
+    DEFAULT_COMPANY_NAME,
+    DEFAULT_COMPANY_SLUG,
+    get_connection,
+    init_db,
+)
 
 
-COMPANY_NAME = "Aurora Makes"
-COMPANY_SLUG = "aurora-makes"
 ADMIN_NAME = "Admin"
-ADMIN_EMAIL = "admin@auroramakes.com"
-ADMIN_USERNAME = "admin@auroramakes.com"
-ADMIN_PASSWORD = "admin123"
-ADMIN_ROLE = "super_admin"
 
 
 def bootstrap_super_admin(reset_password: bool = True) -> dict:
@@ -31,28 +34,28 @@ def bootstrap_super_admin(reset_password: bool = True) -> dict:
     with get_connection() as conn:
         company = conn.execute(
             "SELECT id FROM companies WHERE slug = ? LIMIT 1",
-            (COMPANY_SLUG,),
+            (DEFAULT_COMPANY_SLUG,),
         ).fetchone()
 
         if company:
             company_id = int(company["id"])
             conn.execute(
                 "UPDATE companies SET name = ?, is_active = 1 WHERE id = ?",
-                (COMPANY_NAME, company_id),
+                (DEFAULT_COMPANY_NAME, company_id),
             )
         else:
             cursor = conn.execute(
                 "INSERT INTO companies (name, slug, is_active) VALUES (?, ?, 1)",
-                (COMPANY_NAME, COMPANY_SLUG),
+                (DEFAULT_COMPANY_NAME, DEFAULT_COMPANY_SLUG),
             )
             company_id = int(cursor.lastrowid)
 
         user = conn.execute(
             "SELECT id FROM users WHERE company_id = ? AND LOWER(email) = LOWER(?) LIMIT 1",
-            (company_id, ADMIN_EMAIL),
+            (company_id, DEFAULT_ADMIN_EMAIL),
         ).fetchone()
 
-        password_hash = generate_password_hash(ADMIN_PASSWORD)
+        password_hash = generate_password_hash(DEFAULT_ADMIN_PASSWORD)
 
         if user:
             user_id = int(user["id"])
@@ -68,7 +71,7 @@ def bootstrap_super_admin(reset_password: bool = True) -> dict:
                         password_hash = ?
                     WHERE id = ?
                     """,
-                    (ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_ROLE, company_id, password_hash, user_id),
+                    (DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_ROLE, company_id, password_hash, user_id),
                 )
             else:
                 conn.execute(
@@ -81,7 +84,7 @@ def bootstrap_super_admin(reset_password: bool = True) -> dict:
                         company_id = ?
                     WHERE id = ?
                     """,
-                    (ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_ROLE, company_id, user_id),
+                    (DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_ROLE, company_id, user_id),
                 )
         else:
             cursor = conn.execute(
@@ -89,7 +92,7 @@ def bootstrap_super_admin(reset_password: bool = True) -> dict:
                 INSERT INTO users (company_id, username, email, password_hash, role, is_active)
                 VALUES (?, ?, ?, ?, ?, 1)
                 """,
-                (company_id, ADMIN_USERNAME, ADMIN_EMAIL, password_hash, ADMIN_ROLE),
+                (company_id, DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_EMAIL, password_hash, DEFAULT_ADMIN_ROLE),
             )
             user_id = int(cursor.lastrowid)
 
@@ -97,12 +100,12 @@ def bootstrap_super_admin(reset_password: bool = True) -> dict:
 
     return {
         "company_id": company_id,
-        "company_slug": COMPANY_SLUG,
+        "company_slug": DEFAULT_COMPANY_SLUG,
         "user_id": user_id,
         "name": ADMIN_NAME,
-        "username": ADMIN_USERNAME,
-        "email": ADMIN_EMAIL,
-        "role": ADMIN_ROLE,
+        "username": DEFAULT_ADMIN_USERNAME,
+        "email": DEFAULT_ADMIN_EMAIL,
+        "role": DEFAULT_ADMIN_ROLE,
         "status": "active",
         "password_reset": reset_password,
     }

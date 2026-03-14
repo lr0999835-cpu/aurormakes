@@ -1,6 +1,5 @@
 import sqlite3
 from contextlib import contextmanager
-import os
 
 from werkzeug.security import generate_password_hash
 
@@ -49,6 +48,13 @@ SEED_PRODUCTS = [
     ),
 ]
 
+DEFAULT_COMPANY_NAME = "Aurora Makes"
+DEFAULT_COMPANY_SLUG = "aurora-makes"
+DEFAULT_ADMIN_USERNAME = "admin@auroramakes.com"
+DEFAULT_ADMIN_EMAIL = "admin@auroramakes.com"
+DEFAULT_ADMIN_PASSWORD = "admin123"
+DEFAULT_ADMIN_ROLE = "super_admin"
+
 
 @contextmanager
 def get_connection():
@@ -66,6 +72,55 @@ def _add_column_if_missing(conn, table_name, column_name, definition):
     current_columns = {column["name"] for column in columns}
     if column_name not in current_columns:
         conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {definition}")
+
+
+def ensure_default_admin(conn):
+    company = conn.execute(
+        "SELECT id FROM companies WHERE slug = ? LIMIT 1",
+        (DEFAULT_COMPANY_SLUG,),
+    ).fetchone()
+
+    if company:
+        company_id = int(company["id"])
+        conn.execute(
+            "UPDATE companies SET name = ?, is_active = 1 WHERE id = ?",
+            (DEFAULT_COMPANY_NAME, company_id),
+        )
+    else:
+        cursor = conn.execute(
+            "INSERT INTO companies (name, slug, is_active) VALUES (?, ?, 1)",
+            (DEFAULT_COMPANY_NAME, DEFAULT_COMPANY_SLUG),
+        )
+        company_id = int(cursor.lastrowid)
+
+    password_hash = generate_password_hash(DEFAULT_ADMIN_PASSWORD)
+    admin_user = conn.execute(
+        "SELECT id FROM users WHERE company_id = ? AND LOWER(email) = LOWER(?) LIMIT 1",
+        (company_id, DEFAULT_ADMIN_EMAIL),
+    ).fetchone()
+
+    if admin_user:
+        conn.execute(
+            """
+            UPDATE users
+            SET username = ?,
+                email = ?,
+                role = ?,
+                is_active = 1,
+                password_hash = ?
+            WHERE id = ?
+            """,
+            (DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_ROLE, password_hash, int(admin_user["id"])),
+        )
+        return
+
+    conn.execute(
+        """
+        INSERT INTO users (company_id, username, email, password_hash, role, is_active)
+        VALUES (?, ?, ?, ?, ?, 1)
+        """,
+        (company_id, DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_EMAIL, password_hash, DEFAULT_ADMIN_ROLE),
+    )
 
 
 def init_db():
@@ -273,15 +328,6 @@ def init_db():
                 [(1, *product) for product in SEED_PRODUCTS],
             )
 
-        default_admin_email = os.getenv("AURORA_ADMIN_EMAIL", "admin@aurora.local")
-        default_admin_user = os.getenv("AURORA_ADMIN_USERNAME", "admin")
-        default_admin_password = os.getenv("AURORA_ADMIN_PASSWORD", "Admin#12345")
-        conn.execute(
-            """
-            INSERT OR IGNORE INTO users (company_id, username, email, password_hash, role, is_active)
-            VALUES (?, ?, ?, ?, 'company_admin', 1)
-            """,
-            (1, default_admin_user, default_admin_email, generate_password_hash(default_admin_password)),
-        )
+        ensure_default_admin(conn)
 
         conn.commit()
