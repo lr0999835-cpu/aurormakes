@@ -42,3 +42,37 @@ class Product:
             "is_active": self.is_active,
             "created_at": self.created_at,
         }
+
+
+@dataclass
+class Order:
+    id: int
+    customer_name: str
+    customer_phone: str
+    customer_address: str
+    total: float
+    status: str
+    created_at: str
+
+    @classmethod
+    def from_row(cls, row):
+        return cls(
+            id=row["id"],
+            customer_name=row["customer_name"],
+            customer_phone=row["customer_phone"],
+            customer_address=row["customer_address"],
+            total=float(row["total"]),
+            status=row["status"],
+            created_at=row["created_at"],
+        )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "customer_name": self.customer_name,
+            "customer_phone": self.customer_phone,
+            "customer_address": self.customer_address,
+            "total": self.total,
+            "status": self.status,
+            "created_at": self.created_at,
+        }

@@ -16,34 +16,80 @@ function decreaseCartQuantity(productId) {
   renderCartPage();
 }
 
-function createWhatsAppMessage(cartItems, total) {
-  const lines = ["Olá! Quero finalizar meu pedido na Aurora Makes:", ""];
+function createWhatsAppMessage(order) {
+  const lines = [
+    "Olá! Quero finalizar meu pedido na Aurora Makes:",
+    `Pedido #${order.id}`,
+    ""
+  ];
 
-  cartItems.forEach((item) => {
-    lines.push(`• Produto: ${item.nome}`);
-    lines.push(`  Quantidade: ${item.quantidade}`);
-    lines.push(`  Preço unitário: ${formatPrice(item.preco)}`);
-    lines.push(`  Total do item: ${formatPrice(item.subtotal)}`);
+  order.items.forEach((item) => {
+    lines.push(`• Produto: ${item.product_name}`);
+    lines.push(`  Quantidade: ${item.quantity}`);
+    lines.push(`  Preço unitário: ${formatPrice(item.price)}`);
     lines.push("");
   });
 
-  lines.push(`Total do pedido: ${formatPrice(total)}`);
-
+  lines.push(`Total do pedido: ${formatPrice(order.total)}`);
   return encodeURIComponent(lines.join("\n"));
 }
 
-function checkoutByWhatsApp() {
+async function createOrderFromCart() {
   const detailedCart = getDetailedCartItems();
-
   if (detailedCart.length === 0) {
     alert("Seu carrinho está vazio");
-    return;
+    return null;
   }
 
-  const total = calculateCartTotal();
-  const mensagem = createWhatsAppMessage(detailedCart, total);
+  const customer_name = window.prompt("Digite seu nome:");
+  const customer_phone = window.prompt("Digite seu telefone:");
+  const customer_address = window.prompt("Digite seu endereço para entrega:");
 
-  window.open(`${WHATSAPP_URL}?text=${mensagem}`, "_blank");
+  if (!customer_name || !customer_phone || !customer_address) {
+    alert("Preencha nome, telefone e endereço para criar o pedido.");
+    return null;
+  }
+
+  const payload = {
+    customer_name,
+    customer_phone,
+    customer_address,
+    items: detailedCart.map((item) => ({
+      product_id: item.id,
+      quantity: item.quantidade
+    }))
+  };
+
+  const response = await fetch("/api/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Erro ao criar pedido");
+  }
+
+  saveCart([]);
+  updateCartCount();
+  renderCartPage();
+  return data;
+}
+
+async function checkoutByWhatsApp() {
+  try {
+    const order = await createOrderFromCart();
+    if (!order) {
+      return;
+    }
+
+    const mensagem = createWhatsAppMessage(order);
+    window.open(`https://wa.me/5521974803694?text=${mensagem}`, "_blank");
+  } catch (error) {
+    alert(error.message || "Não foi possível finalizar o pedido.");
+  }
 }
 
 function renderCartPage() {
@@ -93,7 +139,7 @@ function renderCartPage() {
 
     <div class="checkout-box">
       <p><strong>Total do pedido:</strong> ${formatPrice(total)}</p>
-      <button class="checkout-btn" type="button" onclick="checkoutByWhatsApp()">Finalizar pedido no WhatsApp</button>
+      <button class="checkout-btn" type="button" onclick="checkoutByWhatsApp()">Criar pedido e finalizar no WhatsApp</button>
     </div>
   `;
 }

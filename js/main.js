@@ -1,6 +1,5 @@
 const CART_STORAGE_KEY = "aurora_makes_cart";
-const WHATSAPP_NUMBER = "21974803694";
-const WHATSAPP_URL = `https://wa.me/55${WHATSAPP_NUMBER}`;
+const WHATSAPP_URL = "https://wa.me/5521974803694";
 
 let catalogoProdutos = [];
 
