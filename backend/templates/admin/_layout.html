@@ -9,19 +9,27 @@
 </head>
 <body class="admin-body">
   {% if g.current_user %}
-    {% include 'admin/_admin_nav.html' %}
+    <div class="admin-shell">
+      {% include 'admin/_admin_nav.html' %}
+      <main class="admin-main-content">
+        <div class="container admin-main section">
+  {% else %}
+    <main class="container admin-main section">
   {% endif %}
-  <main class="container admin-main section">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="admin-alerts">
-          {% for category, message in messages %}
-            <p class="admin-alert admin-alert-{{ category }}">{{ message }}</p>
-          {% endfor %}
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              <div class="admin-alerts">
+                {% for category, message in messages %}
+                  <p class="admin-alert admin-alert-{{ category }}">{{ message }}</p>
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% endwith %}
+          {% block content %}{% endblock %}
         </div>
-      {% endif %}
-    {% endwith %}
-    {% block content %}{% endblock %}
-  </main>
+      </main>
+  {% if g.current_user %}
+    </div>
+  {% endif %}
 </body>
 </html>

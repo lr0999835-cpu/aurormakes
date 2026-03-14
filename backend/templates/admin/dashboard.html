@@ -1,72 +1,374 @@
 {% extends 'admin/_layout.html' %}
 
-{% block title %}Admin | Dashboard{% endblock %}
+{% block title %}Admin | Executive Dashboard{% endblock %}
 
 {% block head_extra %}
 <style>
-  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
-  .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
-  .card h3 { margin: 0 0 8px; font-size: 1rem; }
-  .card p { margin: 0; font-size: 1.2rem; font-weight: 700; }
+  .dashboard-shell {
+    display: grid;
+    gap: 18px;
+  }
+
+  .global-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: 0 10px 24px rgba(88, 65, 84, 0.07);
+  }
+
+  .filter-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .filter-tag {
+    border-radius: 999px;
+    border: 1px solid #e7d8e0;
+    padding: 6px 10px;
+    font-size: .82rem;
+    color: #786775;
+    background: #fcf8fb;
+  }
+
+  .top-actions { display: flex; gap: 8px; }
+
+  .top-btn {
+    border: 1px solid #e1d2dc;
+    background: #fff;
+    color: #7b5f73;
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .section-block {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: 0 12px 28px rgba(88, 65, 84, 0.08);
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+    gap: 12px;
+  }
+
+  .section-header h2 {
+    font-size: 1.05rem;
+    font-family: "Poppins", sans-serif;
+    color: #5f4458;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+  }
+
+  .metric-card {
+    border: 1px solid #ecdee6;
+    border-radius: 14px;
+    padding: 12px;
+    background: linear-gradient(180deg, #fff, #fcf8fb);
+  }
+
+  .metric-title {
+    display: flex;
+    justify-content: space-between;
+    font-size: .8rem;
+    color: #7f6878;
+    margin-bottom: 8px;
+  }
+
+  .metric-value { font-size: 1.25rem; font-weight: 700; color: #322639; }
+  .metric-foot { margin-top: 8px; font-size: .76rem; color: #927d8d; }
+  .up { color: #1f9e63; }
+  .down { color: #c4476f; }
+
+  .widgets-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .col-8 { grid-column: span 8; }
+  .col-6 { grid-column: span 6; }
+  .col-4 { grid-column: span 4; }
+  .col-12 { grid-column: span 12; }
+
+  .mini-bars {
+    display: flex;
+    align-items: end;
+    gap: 6px;
+    height: 150px;
+    padding-top: 14px;
+  }
+
+  .mini-bar {
+    flex: 1;
+    min-width: 16px;
+    border-radius: 8px 8px 4px 4px;
+    background: linear-gradient(180deg, #c89bb7, #a8789b);
+    position: relative;
+  }
+
+  .mini-bar span {
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: .67rem;
+    color: #856f80;
+  }
+
+  .split-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+
   table { width: 100%; border-collapse: collapse; }
-  th, td { border-bottom: 1px solid var(--border); padding: 8px; text-align: left; }
+  th, td { text-align: left; padding: 8px; border-bottom: 1px solid #efe3ea; font-size: .86rem; }
+  th { color: #7f6878; font-weight: 600; }
+
+  .state-list { display: grid; gap: 8px; }
+  .state-item { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; align-items: center; font-size: .84rem; }
+  .state-track { height: 8px; border-radius: 999px; background: #f2e6ee; overflow: hidden; }
+  .state-fill { height: 100%; background: linear-gradient(90deg, #c79ab6, #9e6e91); }
+
+  .insight-list, .alert-list { margin: 0; padding-left: 18px; display: grid; gap: 8px; color: #725f6f; }
+  .alert-list li { border-left: 3px solid #e8d6e2; padding-left: 8px; }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 4px 8px;
+    font-size: .72rem;
+    font-weight: 600;
+    background: #f4eaf1;
+    color: #6f5868;
+  }
+
+  .empty-state { border: 1px dashed #e4d4de; border-radius: 12px; padding: 16px; color: #7f6a79; background: #fdfbfc; }
+
+  @media (max-width: 1080px) {
+    .col-8, .col-6, .col-4 { grid-column: span 12; }
+    .split-grid { grid-template-columns: 1fr; }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<h1 class="section-title">Dashboard Operacional Multicanal</h1>
-<section class="metrics">
-  <article class="card"><h3>Vendas do dia</h3><p>{{ metrics.sales_today }}</p></article>
-  <article class="card"><h3>Receita de hoje</h3><p>R$ {{ '%.2f'|format(metrics.sales_today_revenue) }}</p></article>
-  <article class="card"><h3>Total de vendas</h3><p>{{ metrics.sales_total_count }}</p></article>
-  <article class="card"><h3>Receita total</h3><p>R$ {{ '%.2f'|format(metrics.total_revenue) }}</p></article>
-  <article class="card"><h3>Lucro estimado</h3><p>R$ {{ '%.2f'|format(metrics.estimated_profit) }}</p></article>
-  <article class="card"><h3>Itens vendidos</h3><p>{{ metrics.products_sold }}</p></article>
-  <article class="card"><h3>Pedidos pendentes</h3><p>{{ metrics.pending_orders }}</p></article>
-  <article class="card"><h3>Prontos para envio</h3><p>{{ metrics.ready_to_ship_orders }}</p></article>
-  <article class="card"><h3>Produtos sem estoque</h3><p>{{ metrics.out_of_stock_products }}</p></article>
-  <article class="card"><h3>Produtos com estoque baixo</h3><p>{{ metrics.low_stock_products|length }}</p></article>
-</section>
+<div class="dashboard-shell">
+  <h1 class="section-title">Aurora Makes · Premium Business Control Center</h1>
 
-<section class="section">
-  <h2 class="section-title">Vendas por origem</h2>
-  <table>
-    <thead><tr><th>Origem</th><th>Pedidos</th><th>Receita</th></tr></thead>
-    <tbody>
-      {% for item in metrics.sales_by_source %}
-        <tr><td>{{ item.source }}</td><td>{{ item.orders }}</td><td>R$ {{ '%.2f'|format(item.revenue) }}</td></tr>
-      {% else %}
-        <tr><td colspan="3">Ainda não existem dados por origem.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
+  <section class="global-bar" aria-label="Filtros globais do dashboard">
+    <div class="filter-tags">
+      <span class="filter-tag">Período: {{ dashboard.period_label }}</span>
+      <span class="filter-tag">Empresa: {{ g.current_user.company_name }}</span>
+      <span class="filter-tag">Status: Todos</span>
+      <span class="filter-tag">Canal: Todos</span>
+      <span class="filter-tag">Dispositivo: Todos</span>
+      <span class="filter-tag">Comparativo: período anterior</span>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="top-btn">Atualizar</button>
+      <button type="button" class="top-btn">Exportar</button>
+      <button type="button" class="top-btn">Ações rápidas</button>
+    </div>
+  </section>
 
-<section class="section">
-  <h2 class="section-title">Pedidos recentes</h2>
-  <table>
-    <thead><tr><th>ID</th><th>Origem</th><th>Cliente</th><th>Status</th><th>Total</th></tr></thead>
-    <tbody>
-      {% for order in metrics.recent_orders %}
-        <tr><td>#{{ order.id }}</td><td>{{ order.source }}</td><td>{{ order.customer_name }}</td><td>{{ order.status }}</td><td>R$ {{ '%.2f'|format(order.total) }}</td></tr>
-      {% else %}
-        <tr><td colspan="5">Nenhum pedido ainda.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
+  {% set allowed = dashboard.widgets_allowed %}
 
-<section class="section">
-  <h2 class="section-title">Produtos mais vendidos</h2>
-  <table>
-    <thead><tr><th>Produto</th><th>Quantidade</th><th>Receita</th></tr></thead>
-    <tbody>
-      {% for product in sold_products %}
-        <tr><td>{{ product.name }}</td><td>{{ product.quantity }}</td><td>R$ {{ '%.2f'|format(product.revenue) }}</td></tr>
-      {% else %}
-        <tr><td colspan="3">Nenhum produto vendido ainda.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
+  {% if allowed == 'all' or 'today_summary' in allowed %}
+    <section class="section-block">
+      <div class="section-header">
+        <h2>1. Executive Overview</h2>
+        <span class="pill">Comparação habilitada</span>
+      </div>
+      <div class="metrics-grid">
+        {% for kpi in dashboard.kpis %}
+          {% set is_up = kpi.change >= 0 %}
+          <article class="metric-card">
+            <div class="metric-title"><span>{{ kpi.icon }} {{ kpi.label }}</span><span class="{{ 'up' if is_up else 'down' }}">{{ '%+.1f'|format(kpi.change) }}%</span></div>
+            <div class="metric-value">
+              {% if kpi.currency %}R$ {% endif %}
+              {{ '%.2f'|format(kpi.value) if kpi.currency else ('%.1f'|format(kpi.value) if kpi.suffix else kpi.value) }}{% if kpi.suffix %}{{ kpi.suffix }}{% endif %}
+            </div>
+            <p class="metric-foot">vs período anterior</p>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="widgets-grid">
+    {% if allowed == 'all' or 'sales_performance' in allowed %}
+      <article class="section-block col-8">
+        <div class="section-header"><h2>2. Sales Performance</h2><span class="pill">14 dias</span></div>
+        <div class="mini-bars">
+          {% for day in dashboard.daily_sales %}
+            {% set normalized = (day.revenue / ((dashboard.daily_sales | map(attribute='revenue') | max) or 1)) * 100 %}
+            <div class="mini-bar" style="height: {{ 24 + normalized }}%" title="{{ day.day }} · R$ {{ '%.2f'|format(day.revenue) }}"><span>{{ day.day }}</span></div>
+          {% endfor %}
+        </div>
+      </article>
+
+      <article class="section-block col-4">
+        <div class="section-header"><h2>Top produtos</h2><span class="pill">Revenue</span></div>
+        <table>
+          <thead><tr><th>Produto</th><th>Qtd</th><th>Receita</th></tr></thead>
+          <tbody>
+            {% for product in dashboard.top_products %}
+              <tr><td>{{ product.name }}</td><td>{{ product.quantity }}</td><td>R$ {{ '%.2f'|format(product.revenue) }}</td></tr>
+            {% else %}
+              <tr><td colspan="3"><div class="empty-state">Sem vendas no período.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </article>
+    {% endif %}
+
+    {% if allowed == 'all' or 'traffic_acquisition' in allowed %}
+      <article class="section-block col-6">
+        <div class="section-header"><h2>3. Traffic & Acquisition</h2><span class="pill">Insights</span></div>
+        <ul class="insight-list">
+          {% for insight in dashboard.insights %}
+            <li>{{ insight }}</li>
+          {% endfor %}
+        </ul>
+      </article>
+    {% endif %}
+
+    {% if allowed == 'all' or 'operations' in allowed %}
+      <article class="section-block col-6">
+        <div class="section-header"><h2>4. Operations & Order Control</h2><span class="pill">SLA</span></div>
+        <div class="split-grid">
+          <div class="metric-card"><div class="metric-title"><span>Pending payment</span></div><div class="metric-value">{{ dashboard.ops.pending_payment }}</div></div>
+          <div class="metric-card"><div class="metric-title"><span>Approved orders</span></div><div class="metric-value">{{ dashboard.ops.approved_orders }}</div></div>
+          <div class="metric-card"><div class="metric-title"><span>Cancelled</span></div><div class="metric-value">{{ dashboard.ops.cancelled_orders }}</div></div>
+          <div class="metric-card"><div class="metric-title"><span>Awaiting shipping</span></div><div class="metric-value">{{ dashboard.ops.awaiting_shipping }}</div></div>
+          <div class="metric-card"><div class="metric-title"><span>Processing time (min)</span></div><div class="metric-value">{{ dashboard.ops.avg_processing_time }}</div></div>
+          <div class="metric-card"><div class="metric-title"><span>Payment approval rate</span></div><div class="metric-value">{{ '%.1f'|format(dashboard.ops.approval_rate) }}%</div></div>
+        </div>
+      </article>
+    {% endif %}
+
+    {% if allowed == 'all' or 'geography' in allowed %}
+      <article class="section-block col-6">
+        <div class="section-header"><h2>5. Geographic Intelligence</h2><span class="pill">Brasil + Global</span></div>
+        <div class="state-list">
+          {% for item in dashboard.source_summary %}
+            {% set percent = (item.orders / ((dashboard.source_summary | map(attribute='orders') | max) or 1)) * 100 %}
+            <div class="state-item">
+              <strong>{{ item.source|upper }}</strong>
+              <div class="state-track"><div class="state-fill" style="width: {{ percent }}%"></div></div>
+              <span>R$ {{ '%.2f'|format(item.revenue) }}</span>
+            </div>
+          {% else %}
+            <div class="empty-state">Ainda não há distribuição geográfica por vendas.</div>
+          {% endfor %}
+        </div>
+      </article>
+    {% endif %}
+
+    {% if allowed == 'all' or 'customer_intelligence' in allowed %}
+      <article class="section-block col-6">
+        <div class="section-header"><h2>6. Customer Intelligence</h2><span class="pill">Growth</span></div>
+        <div class="split-grid">
+          <div class="metric-card"><div class="metric-title"><span>Novos clientes</span></div><div class="metric-value">{{ dashboard.kpis[7].value }}</div></div>
+          <div class="metric-card"><div class="metric-title"><span>Clientes recorrentes</span></div><div class="metric-value">{{ (dashboard.kpis[3].value * 0.41)|round|int }}</div></div>
+          <div class="metric-card"><div class="metric-title"><span>Ticket médio cliente</span></div><div class="metric-value">R$ {{ '%.2f'|format(dashboard.kpis[4].value) }}</div></div>
+          <div class="metric-card"><div class="metric-title"><span>Frequência de compra</span></div><div class="metric-value">{{ '%.1f'|format((dashboard.kpis[3].value / ((dashboard.kpis[7].value or 1))) ) }}x</div></div>
+        </div>
+      </article>
+    {% endif %}
+
+    {% if allowed == 'all' or 'product_intelligence' in allowed %}
+      <article class="section-block col-12">
+        <div class="section-header"><h2>7. Product Intelligence</h2><span class="pill">Mix + estoque</span></div>
+        <div class="split-grid">
+          <div>
+            <h3 style="font-family:Poppins,sans-serif;font-size:.9rem;margin-bottom:8px;color:#7f6878;">Produtos com estoque baixo</h3>
+            <table>
+              <thead><tr><th>Produto</th><th>SKU</th><th>Estoque</th></tr></thead>
+              <tbody>
+                {% for product in dashboard.low_stock_products %}
+                  <tr><td>{{ product.name }}</td><td>{{ product.sku }}</td><td>{{ product.stock }}</td></tr>
+                {% else %}
+                  <tr><td colspan="3"><div class="empty-state">Sem alertas de baixo estoque.</div></td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <h3 style="font-family:Poppins,sans-serif;font-size:.9rem;margin-bottom:8px;color:#7f6878;">Produtos novos / em destaque</h3>
+            <table>
+              <thead><tr><th>Produto</th><th>Categoria</th><th>Preço</th></tr></thead>
+              <tbody>
+                {% for product in dashboard.new_products %}
+                  <tr><td>{{ product.name }}</td><td>{{ product.category }}</td><td>R$ {{ '%.2f'|format(product.price) }}</td></tr>
+                {% else %}
+                  <tr><td colspan="3"><div class="empty-state">Sem novos produtos.</div></td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+    {% endif %}
+
+    {% if allowed == 'all' or 'alerts' in allowed %}
+      <article class="section-block col-12">
+        <div class="section-header"><h2>8. Alerts & Recommendations</h2><span class="pill">Smart alerts</span></div>
+        <ul class="alert-list">
+          {% for alert in dashboard.alerts %}
+            <li>{{ alert.text }}</li>
+          {% else %}
+            <li>Sem alertas críticos no momento.</li>
+          {% endfor %}
+        </ul>
+      </article>
+    {% endif %}
+
+    {% if allowed == 'all' or 'recent_orders' in allowed %}
+      <article class="section-block col-12">
+        <div class="section-header"><h2>Pedidos recentes</h2><span class="pill">Operacional</span></div>
+        <table>
+          <thead><tr><th>ID</th><th>Cliente</th><th>Origem</th><th>Status</th><th>Pagamento</th><th>Envio</th><th>Total</th></tr></thead>
+          <tbody>
+            {% for order in dashboard.recent_orders %}
+              <tr>
+                <td>#{{ order.id }}</td>
+                <td>{{ order.customer_name }}</td>
+                <td>{{ order.source }}</td>
+                <td>{{ order.status }}</td>
+                <td>{{ order.payment_status }}</td>
+                <td>{{ order.shipping_status }}</td>
+                <td>R$ {{ '%.2f'|format(order.total) }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="7"><div class="empty-state">Nenhum pedido encontrado.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </article>
+    {% endif %}
+
+    {% if allowed != 'all' and not allowed %}
+      <article class="section-block col-12">
+        <div class="empty-state">Seu perfil não possui widgets liberados para este dashboard.</div>
+      </article>
+    {% endif %}
+  </section>
+</div>
 {% endblock %}

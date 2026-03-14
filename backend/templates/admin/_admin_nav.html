@@ -1,50 +1,60 @@
 {% set nav_items = [
-  ('Dashboard', 'dashboard:read', url_for('admin.admin_dashboard')),
-  ('Pedidos', 'orders:read', url_for('admin.admin_orders')),
-  ('Estoque', 'stock:read', url_for('admin.admin_stock')),
-  ('Produtos', 'products:read', url_for('admin.admin_products')),
-  ('Canais', 'channels:read', url_for('admin.admin_channels')),
-  ('Integrações', 'integrations:read', url_for('admin.admin_integrations')),
-  ('Empresas', 'users:read', url_for('admin.admin_companies')) if g.current_user.role == 'super_admin' else none,
-  ('Usuários', 'users:read', url_for('admin.admin_users')),
-  ('Permissões', 'permissions:read', url_for('admin.admin_permissions')),] %}
+  ('Dashboard', 'dashboard:read', url_for('admin.admin_dashboard'), '📊'),
+  ('Pedidos', 'orders:read', url_for('admin.admin_orders'), '🧾'),
+  ('Produtos', 'products:read', url_for('admin.admin_products'), '🧁'),
+  ('Clientes', 'orders:read', url_for('admin.admin_orders'), '👥'),
+  ('Marketing', 'integrations:read', url_for('admin.admin_integrations'), '📣'),
+  ('Relatórios', 'dashboard:read', url_for('admin.admin_dashboard'), '📈'),
+  ('Inventário', 'stock:read', url_for('admin.admin_stock'), '📦'),
+  ('Financeiro', 'dashboard:read', url_for('admin.admin_dashboard'), '💸'),
+  ('Canais', 'channels:read', url_for('admin.admin_channels'), '🛒'),
+  ('Integrações', 'integrations:read', url_for('admin.admin_integrations'), '🔌'),
+  ('Empresas', 'users:read', url_for('admin.admin_companies'), '🏢') if g.current_user.role == 'super_admin' else none,
+  ('Usuários', 'users:read', url_for('admin.admin_users'), '🧑‍💼'),
+  ('Permissões', 'permissions:read', url_for('admin.admin_permissions'), '🔐')
+] %}
 {% set allowed_items = [] %}
 {% for item in nav_items %}
   {% if item %}
-    {% set label, permission, href = item %}
+    {% set label, permission, href, icon = item %}
     {% if g.can_access(permission) %}
-    {% set _ = allowed_items.append((label, href)) %}
-  {% endif %}
+      {% set _ = allowed_items.append((label, href, icon)) %}
+    {% endif %}
   {% endif %}
 {% endfor %}
-<header class="admin-header">
-  <div class="container admin-header-inner">
-    <a href="/" class="admin-brand" aria-label="Aurora Makes - voltar para a loja">
-      <span class="admin-brand-title">{{ g.current_user.company_name }}</span>
-      <span class="admin-brand-subtitle">Painel administrativo</span>
-    </a>
 
-    <details class="admin-mobile-nav" role="group">
-      <summary aria-label="Abrir menu de navegação administrativa">
-        <span></span>
-        <span></span>
-        <span></span>
-      </summary>
-      <nav class="admin-mobile-nav-panel" aria-label="Navegação mobile do admin">
-        {% for label, href in allowed_items %}
-          {% set is_active = request.path == href %}
-          <a href="{{ href }}" {% if is_active %}aria-current="page"{% endif %}>{{ label }}</a>
-        {% endfor %}
-      </nav>
-    </details>
+<aside class="admin-sidebar" aria-label="Menu lateral administrativo">
+  <a href="{{ url_for('admin.admin_dashboard') }}" class="admin-brand" aria-label="Aurora Makes dashboard">
+    <span class="admin-brand-title">{{ g.current_user.company_name }}</span>
+    <span class="admin-brand-subtitle">Executive panel</span>
+  </a>
 
-    <nav class="admin-nav" aria-label="Navegação principal do admin">
-      {% for label, href in allowed_items %}
-        {% set is_active = request.path == href %}
-        <a href="{{ href }}" class="admin-nav-link{% if is_active %} is-active{% endif %}" {% if is_active %}aria-current="page"{% endif %}>{{ label }}</a>
-      {% endfor %}
-    </nav>
+  <nav class="admin-side-nav" aria-label="Navegação principal">
+    {% for label, href, icon in allowed_items %}
+      {% set is_active = request.path == href %}
+      <a href="{{ href }}" class="admin-nav-link{% if is_active %} is-active{% endif %}" {% if is_active %}aria-current="page"{% endif %}>
+        <span>{{ icon }}</span>
+        <span>{{ label }}</span>
+      </a>
+    {% endfor %}
+  </nav>
+</aside>
 
+<header class="admin-topbar">
+  <div class="admin-topbar-left">
+    <h2>Dashboard premium</h2>
+    <p>{{ g.current_user.role }} · {{ g.current_user.company_slug }}</p>
+  </div>
+
+  <form class="admin-topbar-search" role="search">
+    <input type="search" placeholder="Buscar pedidos, produtos, clientes..." aria-label="Busca global">
+    <button type="submit" aria-label="Pesquisar">⌕</button>
+  </form>
+
+  <div class="admin-topbar-actions">
+    <button type="button" class="topbar-icon" aria-label="Atalhos de data">📅</button>
+    <button type="button" class="topbar-icon" aria-label="Notificações">🔔</button>
+    <button type="button" class="topbar-icon" aria-label="Atualizar dashboard">↻</button>
     <form class="admin-logout" method="post" action="{{ url_for('admin.admin_logout') }}">
       <span class="admin-user-pill">{{ g.current_user.role }}</span>
       <button type="submit" class="btn btn-outline">Sair</button>
