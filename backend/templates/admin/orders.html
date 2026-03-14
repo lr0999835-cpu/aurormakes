@@ -12,6 +12,10 @@
     table { width: 100%; border-collapse: collapse; }
     th, td { border-bottom: 1px solid var(--border); padding: 8px; text-align: left; }
     .muted { color: #6b7280; font-size: .92rem; }
+    .details-grid { display: grid; gap: 12px; margin-top: 12px; }
+    .details-group { border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
+    .details-group h3 { margin-bottom: 6px; }
+    .placeholder { color: #6b7280; padding: 24px 12px; text-align: center; border: 1px dashed var(--border); border-radius: 12px; }
     @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -69,10 +73,10 @@
             {% for order in orders %}
               <tr>
                 <td>#{{ order.id }}</td>
-                <td>{{ order.source }}</td>
-                <td>{{ order.customer_name }}</td>
-                <td>{{ order.status }}</td>
-                <td>R$ {{ '%.2f'|format(order.total) }}</td>
+                <td>{{ order.source or '-' }}</td>
+                <td>{{ order.customer_name or '-' }}</td>
+                <td>{{ order.status or '-' }}</td>
+                <td>R$ {{ '%.2f'|format(order.total or 0) }}</td>
                 <td><a class="btn" href="{{ url_for('admin.admin_orders', id=order.id, source=filters.source, status=filters.status, payment_status=filters.payment_status, shipping_status=filters.shipping_status) }}">Detalhes</a></td>
               </tr>
             {% else %}
@@ -84,25 +88,53 @@
       <section class="card">
         {% if selected_order %}
           <h2>Pedido #{{ selected_order.id }}</h2>
-          <p><strong>Origem:</strong> {{ selected_order.source }}</p>
-          <p><strong>ID externo:</strong> {{ selected_order.external_order_id or '-' }}</p>
-          <p><strong>Cliente:</strong> {{ selected_order.customer_name }}</p>
-          <p><strong>Telefone:</strong> {{ selected_order.customer_phone }}</p>
-          <p><strong>Endereço:</strong> {{ selected_order.customer_address }}</p>
-          <p><strong>Pagamento:</strong> {{ selected_order.payment_status }} | {{ selected_order.payment_method or '-' }}</p>
-          <p><strong>Envio:</strong> {{ selected_order.shipping_status }} | {{ selected_order.shipping_method or '-' }}</p>
-          <p><strong>Rastreio:</strong> {{ selected_order.shipping_tracking_code or '-' }}</p>
-          <p><strong>Notas internas:</strong> {{ selected_order.internal_notes or '-' }}</p>
-          <p><strong>Total:</strong> R$ {{ '%.2f'|format(selected_order.total) }}</p>
-          <h3>Itens</h3>
-          <ul>
-            {% for item in selected_order.items %}
-              <li>{{ item.product_name }} ({{ item.product_sku or 'sem SKU' }}) — {{ item.quantity }} x R$ {{ '%.2f'|format(item.price) }} = R$ {{ '%.2f'|format(item.subtotal) }}</li>
-            {% endfor %}
-          </ul>
-          <p class="muted">Label de envio: {{ selected_order.shipping_label_url or '-' }}</p>
+          <div class="details-grid">
+            <div class="details-group">
+              <h3>Informações do pedido</h3>
+              <p><strong>Data:</strong> {{ selected_order.created_at or '-' }}</p>
+              <p><strong>Status do pedido:</strong> {{ selected_order.status or '-' }}</p>
+              <p><strong>Status de pagamento:</strong> {{ selected_order.payment_status or '-' }}</p>
+              <p><strong>Método de pagamento:</strong> {{ selected_order.payment_method or '-' }}</p>
+              <p><strong>Método de envio:</strong> {{ selected_order.shipping_method or '-' }}</p>
+              <p><strong>Status de envio:</strong> {{ selected_order.shipping_status or '-' }}</p>
+            </div>
+
+            <div class="details-group">
+              <h3>Informações do cliente</h3>
+              <p><strong>Nome:</strong> {{ selected_order.customer_name or '-' }}</p>
+              <p><strong>Telefone:</strong> {{ selected_order.customer_phone or '-' }}</p>
+              <p><strong>Endereço do cliente:</strong> {{ selected_order.customer_address or '-' }}</p>
+              <p><strong>Endereço de entrega:</strong> {{ selected_order.customer_address or '-' }}</p>
+            </div>
+
+            <div class="details-group">
+              <h3>Itens do pedido</h3>
+              <ul>
+                {% for order_item in selected_order_items %}
+                  <li>
+                    {{ order_item.product_name or 'Produto sem nome' }}
+                    ({{ order_item.product_sku or 'sem SKU' }}) —
+                    {{ order_item.quantity or 0 }} x R$ {{ '%.2f'|format(order_item.price or 0) }}
+                    = R$ {{ '%.2f'|format(order_item.subtotal or 0) }}
+                  </li>
+                {% else %}
+                  <li class="muted">Nenhum item cadastrado neste pedido.</li>
+                {% endfor %}
+              </ul>
+              <p><strong>Total do pedido:</strong> R$ {{ '%.2f'|format(selected_order.total or 0) }}</p>
+            </div>
+
+            <div class="details-group">
+              <h3>Informações operacionais</h3>
+              <p><strong>Notas internas:</strong> {{ selected_order.internal_notes or '-' }}</p>
+              <p><strong>Pronto para envio:</strong> {{ 'Sim' if selected_order.status == 'ready_to_ship' else 'Não' }}</p>
+              <p><strong>Código de rastreio:</strong> {{ selected_order.shipping_tracking_code or '-' }}</p>
+              <p class="muted">Label de envio: {{ selected_order.shipping_label_url or '-' }}</p>
+            </div>
+          </div>
+
           <p>
-            <a class="btn" href="{{ url_for('admin.admin_order_print', order_id=selected_order.id) }}" target="_blank">Imprimir ficha operacional</a>
+            <a class="btn" href="{{ url_for('admin.admin_order_print', order_id=selected_order.id) }}" target="_blank">Imprimir pedido</a>
           </p>
           <form method="post" action="{{ url_for('admin.admin_change_order_status', order_id=selected_order.id) }}">
             <label>Novo status</label>
@@ -114,7 +146,9 @@
             <button class="btn" type="submit">Atualizar status</button>
           </form>
         {% else %}
-          <p>Selecione um pedido para ver os detalhes.</p>
+          <div class="placeholder">
+            Selecione um pedido na lista para visualizar os detalhes completos e imprimir a ficha operacional.
+          </div>
         {% endif %}
       </section>
     </div>
