@@ -18,15 +18,28 @@
     <div class="container nav-wrapper">
       <a href="/" class="logo">Aurora <span>Makes</span></a>
       <nav class="menu">
-        <a href="/admin/products">Produtos</a>
+        <a href="/admin/dashboard">Dashboard</a>
+        <a href="/admin/orders">Pedidos</a>
         <a href="/admin/stock" class="active">Estoque</a>
-        <a href="/produtos.html">Loja</a>
+        <a href="/admin/products">Produtos</a>
       </nav>
     </div>
   </header>
 
   <main class="container section">
     <h1 class="section-title">Atualização de Estoque</h1>
+
+    <section class="admin-card" style="margin-bottom: 16px;">
+      <h2>Alertas de estoque baixo</h2>
+      <ul>
+        {% for item in low_stock %}
+          <li>{{ item.name }} — estoque atual: {{ item.stock }}</li>
+        {% else %}
+          <li>Sem alertas no momento.</li>
+        {% endfor %}
+      </ul>
+    </section>
+
     <section class="admin-card stock-grid">
       {% for product in products %}
         <div class="stock-item">
@@ -37,6 +50,7 @@
           <span>Atual: {{ product.stock }}</span>
           <form method="post" action="{{ url_for('admin.admin_update_stock', product_id=product.id) }}">
             <input type="number" name="stock" min="0" value="{{ product.stock }}" required>
+            <input type="text" name="notes" placeholder="Observação" style="width: 200px;">
             <button class="btn" type="submit">Salvar</button>
           </form>
         </div>

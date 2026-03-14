@@ -15,6 +15,7 @@ SEED_PRODUCTS = [
 def get_connection():
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     try:
         yield conn
     finally:
@@ -36,6 +37,48 @@ def init_db():
                 image_url TEXT DEFAULT '',
                 is_active INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                customer_name TEXT NOT NULL,
+                customer_phone TEXT NOT NULL,
+                customer_address TEXT NOT NULL,
+                total REAL NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS order_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                order_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                quantity INTEGER NOT NULL,
+                price REAL NOT NULL,
+                FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE,
+                FOREIGN KEY(product_id) REFERENCES products(id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS stock_movements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                product_id INTEGER NOT NULL,
+                movement_type TEXT NOT NULL,
+                quantity INTEGER NOT NULL,
+                notes TEXT DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(product_id) REFERENCES products(id)
             )
             """
         )

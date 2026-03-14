@@ -1,9 +1,13 @@
-from flask import Flask, send_from_directory
+from flask import Flask, abort, render_template, send_from_directory
 
 from config import DEBUG, PROJECT_ROOT, SECRET_KEY
 from database import init_db
 from routes.admin import admin_bp
+from routes.operations import operations_bp
 from routes.products import products_bp
+
+
+ALLOWED_STATIC_DIRS = {"css", "js", "images"}
 
 
 def create_app():
@@ -13,14 +17,30 @@ def create_app():
     init_db()
 
     app.register_blueprint(products_bp)
+    app.register_blueprint(operations_bp)
     app.register_blueprint(admin_bp)
 
     @app.get("/")
     def home():
-        return send_from_directory(PROJECT_ROOT, "index.html")
+        return render_template("store/index.html")
+
+    @app.get("/index.html")
+    def home_alias():
+        return render_template("store/index.html")
+
+    @app.get("/produtos.html")
+    def products_page():
+        return render_template("store/produtos.html")
+
+    @app.get("/carrinho.html")
+    def cart_page():
+        return render_template("store/carrinho.html")
 
     @app.get("/<path:filename>")
     def static_files(filename):
+        folder = filename.split("/", 1)[0]
+        if folder not in ALLOWED_STATIC_DIRS:
+            abort(404)
         return send_from_directory(PROJECT_ROOT, filename)
 
     return app
