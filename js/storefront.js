@@ -1,39 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const heroBannerData = [
-    {
-      key: "esfoliantes",
-      image: "images/banners/esfoliantes-poran.svg",
-      alt: "Banner Esfoliantes Porán: O segredo para uma pele sedosa e macia.",
-      title: "Conheça os Esfoliantes Porán",
-      subtitle: "O segredo para uma pele sedosa e macia.",
-      button_text: "Saiba mais",
-      button_url: "produtos.html?categoria=esfoliantes"
-    },
-    {
-      key: "body-splash",
-      image: "images/banners/body-splash-rose-essence.svg",
-      alt: "Banner Body Splash Rose Essence com chamada para ótima fixação.",
-      title: "Body Splash Rose Essence",
-      subtitle: "Fragrância encantadora com ótima fixação.",
-      button_text: "Ótima fixação",
-      button_url: "produtos.html?categoria=body-splash"
-    },
-    {
-      key: "choco-fun",
-      image: "images/banners/choco-fun-batom-matte.svg",
-      alt: "Banner Choco Fun destacando batom efeito matte.",
-      title: "Batom efeito matte",
-      subtitle: "Coleção Choco Fun Fenzza.",
-      button_text: "Clique e confira",
-      button_url: "produtos.html?categoria=batom"
-    }
-  ];
-
   const categoriesTrack = document.getElementById("categories-track");
   const productsTrack = document.getElementById("home-products");
   const heroTrack = document.getElementById("hero-track");
   const heroDots = document.getElementById("hero-dots");
   const heroSlides = heroTrack ? Array.from(heroTrack.querySelectorAll("[data-slide]")) : [];
+  const heroAutoplayDelay = 4800;
   let heroAutoPlayInterval;
   const megaItems = Array.from(document.querySelectorAll(".mega-item"));
   const mobileNav = document.getElementById("mobile-nav-drawer");
@@ -49,11 +20,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     heroDots.innerHTML = "";
 
-    heroBannerData.forEach((banner, index) => {
+    heroSlides.forEach((slide, index) => {
       const dot = document.createElement("button");
       dot.type = "button";
       dot.className = "hero-dot";
-      dot.setAttribute("aria-label", `Ir para banner ${index + 1}: ${banner.title}`);
+      const heroImage = slide.querySelector(".hero-image");
+      const slideLabel = heroImage?.getAttribute("alt") || `Banner ${index + 1}`;
+      dot.setAttribute("aria-label", `Ir para banner ${index + 1}: ${slideLabel}`);
       dot.dataset.heroDot = String(index);
       heroDots.appendChild(dot);
     });
@@ -88,7 +61,7 @@ document.addEventListener("DOMContentLoaded", () => {
     heroAutoPlayInterval = window.setInterval(() => {
       const activeIndex = Number(heroTrack.dataset.activeSlide || 0);
       setHeroSlide(activeIndex + 1);
-    }, 5000);
+    }, heroAutoplayDelay);
   };
 
   const stopHeroAutoplay = () => {

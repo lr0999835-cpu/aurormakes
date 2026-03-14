@@ -217,21 +217,45 @@
   <main>
     <section class="hero-banner" aria-label="Campanhas em destaque">
       <button class="carousel-arrow prev" type="button" data-target="hero" aria-label="Banner anterior">←</button>
-      <div class="hero-slider" id="hero-track" aria-live="polite"></div>
+      <div class="hero-slider" id="hero-track" aria-live="polite">
+        <article class="hero-slide active" data-slide>
+          <a class="hero-slide-link" href="produtos.html?categoria=esfoliantes" aria-label="Ir para campanha Esfoliantes Porán">
+            <img
+              class="hero-image"
+              src="images/banners/esfoliantes-poran.svg"
+              alt="Banner Esfoliantes Porán"
+              fetchpriority="high"
+              decoding="async"
+            >
+          </a>
+        </article>
+
+        <article class="hero-slide" data-slide>
+          <a class="hero-slide-link" href="produtos.html?categoria=body-splash" aria-label="Ir para campanha Body Splash Rose Essence">
+            <img
+              class="hero-image"
+              src="images/banners/body-splash-rose-essence.svg"
+              alt="Banner Body Splash Rose Essence"
+              loading="lazy"
+              decoding="async"
+            >
+          </a>
+        </article>
+
+        <article class="hero-slide" data-slide>
+          <a class="hero-slide-link" href="produtos.html?categoria=batom" aria-label="Ir para campanha Choco Fun Batom Matte">
+            <img
+              class="hero-image"
+              src="images/banners/choco-fun-batom-matte.svg"
+              alt="Banner Choco Fun Batom Matte"
+              loading="lazy"
+              decoding="async"
+            >
+          </a>
+        </article>
+      </div>
       <button class="carousel-arrow next" type="button" data-target="hero" aria-label="Próximo banner">→</button>
       <div class="hero-dots" id="hero-dots" aria-label="Navegação dos banners"></div>
-      <template id="hero-slide-template">
-        <article class="hero-slide" data-slide>
-          <img class="hero-image" alt="" decoding="async">
-          <div class="hero-overlay container">
-            <div class="hero-copy">
-              <p class="sr-only" data-hero-title></p>
-              <p class="sr-only" data-hero-subtitle></p>
-              <a class="btn hero-cta" data-hero-cta>Ver campanha</a>
-            </div>
-          </div>
-        </article>
-      </template>
     </section>
 
     <section class="container section category-section">
