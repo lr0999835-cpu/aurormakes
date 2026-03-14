@@ -2,6 +2,7 @@ from flask import Blueprint, g, jsonify, request
 import logging
 
 from auth import api_auth_required, load_current_customer, tenant_for_request
+from shipping_services import calculate_shipping_quotes
 from services import (
     create_checkout,
     create_order,
@@ -112,6 +113,21 @@ def post_checkout():
         return jsonify({"error": "Falha ao processar checkout"}), 500
 
     return jsonify(order), 201
+
+
+@operations_bp.post("/shipping/quotes")
+def post_shipping_quotes():
+    payload = request.get_json(silent=True) or {}
+    company_id = tenant_for_request()
+    if not company_id:
+        return jsonify({"error": "Empresa inválida"}), 400
+
+    try:
+        quotes = calculate_shipping_quotes(payload)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify({"cep": payload.get("cep") or "", "quotes": quotes}), 200
 
 
 @operations_bp.post("/payments/webhook")
