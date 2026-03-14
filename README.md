@@ -119,19 +119,18 @@ Na inicialização (`init_db`) o sistema cria automaticamente:
 - empresa padrão `Aurora Makes` (`slug=aurora-makes`)
 - usuário admin padrão para a empresa
 
-Você pode customizar via variáveis de ambiente antes de iniciar a aplicação:
+Para provisionamento seguro e idempotente do primeiro super administrador, use:
 ```bash
-export AURORA_ADMIN_EMAIL="super@empresa.com"
-export AURORA_ADMIN_USERNAME="superadmin"
-export AURORA_ADMIN_PASSWORD="Troque-essa-senha-123"
-python backend/app.py
+python backend/scripts/bootstrap_super_admin.py
 ```
 
-### Como criar a primeira empresa e o primeiro admin
-1. Faça login com o admin padrão (empresa `aurora-makes` + credenciais definidas via env).
-2. Promova esse usuário para `super_admin` no banco (uma vez):
+Esse comando garante que:
+- a empresa `Aurora Makes` (`aurora-makes`) exista e esteja ativa;
+- o usuário `admin@auroramakes.com` exista na empresa correta;
+- o usuário esteja `active` e com role `super_admin`;
+- a senha informada no script seja armazenada com hash (`werkzeug.security.generate_password_hash`).
+
+Para preservar o hash existente (sem resetar senha), execute:
 ```bash
-sqlite3 backend/aurora_makes.db "UPDATE users SET role='super_admin' WHERE username='superadmin';"
+python backend/scripts/bootstrap_super_admin.py --no-reset-password
 ```
-3. Acesse `/admin/empresas` e crie a empresa desejada.
-4. Acesse `/admin/usuarios?company_id=<id_da_empresa>` e crie o `company_admin` da nova empresa.
