@@ -764,7 +764,33 @@ a { text-decoration: none; color: inherit; }
 
 /* Compatibility styles for existing cart/order pages */
 .topo { background: transparent; }
-.nav-wrapper, .menu { display: flex; }
+.topo .nav-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding-block: var(--space-3);
+}
+
+.topo .logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  min-width: 132px;
+  border-radius: 10px;
+}
+
+.topo .menu {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.topo .menu a {
+  display: inline-flex;
+  align-items: center;
+}
+
 .benefits { display: none; }
 .section-subtitle { color: var(--text-soft); }
 
