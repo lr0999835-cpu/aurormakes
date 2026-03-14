@@ -56,10 +56,12 @@ def admin_orders():
 
     selected_id = request.args.get("id")
     selected_order = get_order(int(selected_id)) if selected_id and selected_id.isdigit() else None
+    selected_order_items = selected_order.get("items", []) if selected_order else []
     return render_template(
         "admin/orders.html",
         orders=orders,
         selected_order=selected_order,
+        selected_order_items=selected_order_items,
         statuses=ORDER_STATUSES,
         order_sources=ORDER_SOURCES,
         payment_statuses=PAYMENT_STATUSES,
@@ -73,7 +75,8 @@ def admin_order_print(order_id):
     order = get_order(order_id)
     if not order:
         return redirect(url_for("admin.admin_orders"))
-    return render_template("admin/order_print.html", order=order)
+    order_items = order.get("items", [])
+    return render_template("admin/order_print.html", order=order, order_items=order_items)
 
 
 @admin_bp.post("/orders/<int:order_id>/status")
