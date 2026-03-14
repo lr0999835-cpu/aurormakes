@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ficha operacional #{{ order.id }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #111; }
+    h1, h2 { margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    @media print { .no-print { display:none; } }
+  </style>
+</head>
+<body>
+  <button class="no-print" onclick="window.print()">Imprimir</button>
+  <h1>Aurora Makes - Ficha operacional</h1>
+  <h2>Pedido #{{ order.id }}</h2>
+
+  <div class="meta">
+    <p><strong>Origem:</strong> {{ order.source }}</p>
+    <p><strong>ID externo:</strong> {{ order.external_order_id or '-' }}</p>
+    <p><strong>Cliente:</strong> {{ order.customer_name }}</p>
+    <p><strong>Telefone:</strong> {{ order.customer_phone }}</p>
+    <p><strong>Endereço:</strong> {{ order.customer_address }}</p>
+    <p><strong>Status do pedido:</strong> {{ order.status }}</p>
+    <p><strong>Pagamento:</strong> {{ order.payment_status }} | {{ order.payment_method or '-' }}</p>
+    <p><strong>Envio:</strong> {{ order.shipping_status }} | {{ order.shipping_method or '-' }}</p>
+    <p><strong>Rastreio:</strong> {{ order.shipping_tracking_code or '-' }}</p>
+    <p><strong>Data:</strong> {{ order.created_at }}</p>
+  </div>
+
+  <table>
+    <thead><tr><th>Produto</th><th>SKU</th><th>Qtd</th><th>Unitário</th><th>Subtotal</th></tr></thead>
+    <tbody>
+      {% for item in order.items %}
+        <tr>
+          <td>{{ item.product_name }}</td>
+          <td>{{ item.product_sku or '-' }}</td>
+          <td>{{ item.quantity }}</td>
+          <td>R$ {{ '%.2f'|format(item.price) }}</td>
+          <td>R$ {{ '%.2f'|format(item.subtotal) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p><strong>Total:</strong> R$ {{ '%.2f'|format(order.total) }}</p>
+  <p><strong>Notas internas:</strong> {{ order.internal_notes or '-' }}</p>
+</body>
+</html>

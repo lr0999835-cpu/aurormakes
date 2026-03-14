@@ -26,6 +26,7 @@
         <a href="/admin/orders">Pedidos</a>
         <a href="/admin/stock">Estoque</a>
         <a href="/admin/products" class="active">Produtos</a>
+        <a href="/admin/channels">Canais</a>
       </nav>
     </div>
   </header>
@@ -38,6 +39,9 @@
         <form class="admin-form" method="post" action="{{ url_for('admin.admin_update_product', product_id=product_to_edit.id) if product_to_edit else url_for('admin.admin_create_product') }}">
           <input name="name" placeholder="Nome" value="{{ product_to_edit.name if product_to_edit else '' }}" required>
           <input name="category" placeholder="Categoria" value="{{ product_to_edit.category if product_to_edit else '' }}" required>
+          <input name="sku" placeholder="SKU interno" value="{{ product_to_edit.sku if product_to_edit else '' }}" required>
+          <input name="barcode" placeholder="Código de barras" value="{{ product_to_edit.barcode if product_to_edit else '' }}">
+          <input name="supplier_reference" placeholder="Referência do fornecedor" value="{{ product_to_edit.supplier_reference if product_to_edit else '' }}">
           <textarea name="description" placeholder="Descrição">{{ product_to_edit.description if product_to_edit else '' }}</textarea>
           <input type="number" step="0.01" min="0" name="price" placeholder="Preço" value="{{ product_to_edit.price if product_to_edit else '' }}" required>
           <input type="number" step="0.01" min="0" name="cost" placeholder="Custo" value="{{ product_to_edit.cost if product_to_edit else '' }}" required>
@@ -55,6 +59,7 @@
             <tr>
               <th>ID</th>
               <th>Nome</th>
+              <th>SKU</th>
               <th>Preço</th>
               <th>Estoque</th>
               <th>Status</th>
@@ -66,6 +71,7 @@
               <tr>
                 <td>{{ product.id }}</td>
                 <td>{{ product.name }}</td>
+                <td>{{ product.sku or '-' }}</td>
                 <td>R$ {{ '%.2f'|format(product.price) }}</td>
                 <td>{{ product.stock }}</td>
                 <td>{{ 'Ativo' if product.is_active else 'Inativo' }}</td>
@@ -81,7 +87,7 @@
                 </td>
               </tr>
             {% else %}
-              <tr><td colspan="6">Nenhum produto cadastrado.</td></tr>
+              <tr><td colspan="7">Nenhum produto cadastrado.</td></tr>
             {% endfor %}
           </tbody>
         </table>
