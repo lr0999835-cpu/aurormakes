@@ -6,8 +6,51 @@
 <style>
   .dashboard-shell {
     display: grid;
-    gap: 18px;
+    gap: 22px;
+    padding-bottom: 28px;
   }
+
+  .dashboard-hero {
+    border: 1px solid #e5dbe8;
+    border-radius: 22px;
+    padding: 22px;
+    background: radial-gradient(circle at top right, #f8eef6 0, #ffffff 48%, #ffffff 100%);
+    box-shadow: 0 18px 38px rgba(51, 38, 48, 0.08);
+  }
+
+  .hero-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .hero-top h1 {
+    font-size: clamp(1.25rem, 2vw, 1.8rem);
+    color: #342638;
+    margin-bottom: 6px;
+  }
+
+  .hero-top p {
+    margin: 0;
+    color: #7f6b7b;
+    font-size: .92rem;
+  }
+
+  .hero-trend {
+    border: 1px solid #d9c5d5;
+    border-radius: 14px;
+    padding: 10px 14px;
+    background: #fff;
+    color: #6f5568;
+    font-size: .82rem;
+    display: grid;
+    gap: 3px;
+    min-width: 180px;
+  }
+
+  .hero-trend strong { color: #322737; font-size: 1.05rem; }
 
   .global-bar {
     display: flex;
@@ -16,91 +59,131 @@
     justify-content: space-between;
     gap: 12px;
     background: #fff;
-    border: 1px solid var(--border);
+    border: 1px solid #eadfea;
     border-radius: 16px;
     padding: 12px;
-    box-shadow: 0 10px 24px rgba(88, 65, 84, 0.07);
   }
 
-  .filter-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
+  .filter-tags,
+  .comparison-chips,
+  .top-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
-  .filter-tag {
+  .filter-tag,
+  .comparison-chip {
     border-radius: 999px;
-    border: 1px solid #e7d8e0;
+    border: 1px solid #e8d7e4;
     padding: 6px 10px;
-    font-size: .82rem;
+    font-size: .79rem;
     color: #786775;
-    background: #fcf8fb;
+    background: #fcf9fc;
   }
 
-  .top-actions { display: flex; gap: 8px; }
+  .comparison-chip { background: #f7f2f8; color: #685162; font-weight: 600; }
 
   .top-btn {
     border: 1px solid #e1d2dc;
     background: #fff;
-    color: #7b5f73;
+    color: #6f5366;
     border-radius: 10px;
-    padding: 7px 10px;
+    padding: 8px 12px;
     font-weight: 600;
     cursor: pointer;
+    transition: all .2s ease;
+  }
+
+  .top-btn:hover {
+    transform: translateY(-1px);
+    border-color: #cfb1c4;
+    background: #fcf7fb;
   }
 
   .section-block {
     background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 14px;
-    box-shadow: 0 12px 28px rgba(88, 65, 84, 0.08);
+    border: 1px solid #e9dfea;
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: 0 12px 26px rgba(80, 57, 75, 0.07);
   }
 
   .section-header {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 10px;
+    align-items: flex-start;
+    margin-bottom: 12px;
     gap: 12px;
+  }
+
+  .section-eyebrow {
+    font-size: .73rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #9a8195;
+    margin: 0 0 4px;
+    font-weight: 700;
   }
 
   .section-header h2 {
     font-size: 1.05rem;
     font-family: "Poppins", sans-serif;
-    color: #5f4458;
+    color: #432f43;
+    margin: 0;
+  }
+
+  .section-description {
+    margin: 4px 0 0;
+    font-size: .83rem;
+    color: #897486;
   }
 
   .metrics-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
   }
 
   .metric-card {
-    border: 1px solid #ecdee6;
+    border: 1px solid #ebdeea;
     border-radius: 14px;
-    padding: 12px;
-    background: linear-gradient(180deg, #fff, #fcf8fb);
+    padding: 14px;
+    background: linear-gradient(180deg, #fff, #fcf9fc);
+    transition: box-shadow .2s ease, transform .2s ease;
   }
+
+  .metric-card:hover { transform: translateY(-2px); box-shadow: 0 12px 22px rgba(89, 63, 83, .09); }
 
   .metric-title {
     display: flex;
     justify-content: space-between;
-    font-size: .8rem;
+    font-size: .78rem;
     color: #7f6878;
-    margin-bottom: 8px;
+    margin-bottom: 9px;
+    gap: 8px;
   }
 
-  .metric-value { font-size: 1.25rem; font-weight: 700; color: #322639; }
-  .metric-foot { margin-top: 8px; font-size: .76rem; color: #927d8d; }
-  .up { color: #1f9e63; }
-  .down { color: #c4476f; }
+  .metric-value { font-size: 1.42rem; font-weight: 700; color: #2f2433; }
+  .metric-foot { margin-top: 9px; font-size: .76rem; color: #927d8d; }
+
+  .trend-badge,
+  .status-badge {
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-size: .7rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .trend-up { background: #e8f7ef; color: #1e7a4a; }
+  .trend-down { background: #faeaef; color: #a63b60; }
+  .status-ok { background: #ebf5ff; color: #265b93; }
+  .status-warn { background: #fff4e8; color: #9a5c12; }
+  .status-danger { background: #faeaef; color: #a63b60; }
 
   .widgets-grid {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: 12px;
+    gap: 14px;
   }
 
   .col-8 { grid-column: span 8; }
@@ -111,80 +194,153 @@
   .mini-bars {
     display: flex;
     align-items: end;
-    gap: 6px;
-    height: 150px;
-    padding-top: 14px;
+    gap: 7px;
+    min-height: 174px;
+    padding: 22px 4px 2px;
   }
 
   .mini-bar {
     flex: 1;
-    min-width: 16px;
-    border-radius: 8px 8px 4px 4px;
-    background: linear-gradient(180deg, #c89bb7, #a8789b);
+    min-width: 18px;
+    border-radius: 10px 10px 4px 4px;
+    background: linear-gradient(180deg, #d7b3ca, #9f6f91);
     position: relative;
+    transition: transform .2s ease;
   }
+
+  .mini-bar:hover { transform: translateY(-3px); }
 
   .mini-bar span {
     position: absolute;
-    bottom: -18px;
+    bottom: -20px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: .67rem;
+    font-size: .65rem;
     color: #856f80;
   }
 
-  .split-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .split-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+
+  .data-table-wrap {
+    border: 1px solid #ede3eb;
+    border-radius: 14px;
+    overflow: auto;
+    background: #fff;
+  }
 
   table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 8px; border-bottom: 1px solid #efe3ea; font-size: .86rem; }
-  th { color: #7f6878; font-weight: 600; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #f1e7ef; font-size: .84rem; }
+  th { color: #7f6878; font-weight: 600; background: #fbf8fc; }
+  tbody tr:hover { background: #fdf9fd; }
 
-  .state-list { display: grid; gap: 8px; }
-  .state-item { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; align-items: center; font-size: .84rem; }
-  .state-track { height: 8px; border-radius: 999px; background: #f2e6ee; overflow: hidden; }
-  .state-fill { height: 100%; background: linear-gradient(90deg, #c79ab6, #9e6e91); }
+  .state-list { display: grid; gap: 10px; }
+  .state-item { display: grid; grid-template-columns: 90px 1fr auto; gap: 10px; align-items: center; font-size: .82rem; }
+  .state-track { height: 9px; border-radius: 999px; background: #f2e7f0; overflow: hidden; }
+  .state-fill { height: 100%; background: linear-gradient(90deg, #c79ab6, #916286); }
+
+  .map-placeholder {
+    margin-top: 12px;
+    border: 1px solid #e8dbe8;
+    border-radius: 14px;
+    padding: 14px;
+    background: radial-gradient(circle at 20% 20%, #f8eef5, #fff);
+    color: #7d6979;
+    font-size: .82rem;
+  }
 
   .insight-list, .alert-list { margin: 0; padding-left: 18px; display: grid; gap: 8px; color: #725f6f; }
-  .alert-list li { border-left: 3px solid #e8d6e2; padding-left: 8px; }
+
+  .alert-list { padding-left: 0; list-style: none; }
+  .alert-list li {
+    border: 1px solid #ebdfe8;
+    border-left-width: 4px;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #fff;
+  }
+  .alert-list li.alert-high { border-left-color: #c43e68; background: #fff8fa; }
+  .alert-list li.alert-medium { border-left-color: #d58a28; background: #fffbf5; }
+  .alert-list li.alert-low { border-left-color: #538bc4; background: #f8fbff; }
 
   .pill {
     display: inline-flex;
     align-items: center;
     border-radius: 999px;
-    padding: 4px 8px;
-    font-size: .72rem;
-    font-weight: 600;
-    background: #f4eaf1;
+    padding: 5px 9px;
+    font-size: .7rem;
+    font-weight: 700;
+    background: #f2eaf1;
     color: #6f5868;
   }
 
-  .empty-state { border: 1px dashed #e4d4de; border-radius: 12px; padding: 16px; color: #7f6a79; background: #fdfbfc; }
+  .skeleton-row {
+    border-radius: 8px;
+    height: 12px;
+    background: linear-gradient(90deg, #f4ebf2 20%, #fff 50%, #f4ebf2 80%);
+    background-size: 220% 100%;
+    animation: shimmer 1.6s infinite;
+  }
+
+  .skeleton-grid { display: grid; gap: 8px; margin-top: 10px; }
+
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -20% 0; }
+  }
+
+  .empty-state {
+    border: 1px dashed #e4d4de;
+    border-radius: 12px;
+    padding: 16px;
+    color: #7f6a79;
+    background: #fdfbfc;
+    text-align: center;
+  }
 
   @media (max-width: 1080px) {
     .col-8, .col-6, .col-4 { grid-column: span 12; }
     .split-grid { grid-template-columns: 1fr; }
+    .hero-top { flex-direction: column; }
   }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="dashboard-shell">
-  <h1 class="section-title">Aurora Makes · Premium Business Control Center</h1>
+  <section class="dashboard-hero">
+    <div class="hero-top">
+      <div>
+        <h1>Aurora Makes · Enterprise Intelligence Hub</h1>
+        <p>Operational clarity, strategic confidence and executive visibility in one premium cockpit.</p>
+      </div>
+      <div class="hero-trend">
+        <span>Top summary</span>
+        <strong>Revenue momentum +18.4%</strong>
+        <span>Conversion stable · Demand confidence high</span>
+      </div>
+    </div>
 
-  <section class="global-bar" aria-label="Filtros globais do dashboard">
-    <div class="filter-tags">
-      <span class="filter-tag">Período: {{ dashboard.period_label }}</span>
-      <span class="filter-tag">Empresa: {{ g.current_user.company_name }}</span>
-      <span class="filter-tag">Status: Todos</span>
-      <span class="filter-tag">Canal: Todos</span>
-      <span class="filter-tag">Dispositivo: Todos</span>
-      <span class="filter-tag">Comparativo: período anterior</span>
-    </div>
-    <div class="top-actions">
-      <button type="button" class="top-btn">Atualizar</button>
-      <button type="button" class="top-btn">Exportar</button>
-      <button type="button" class="top-btn">Ações rápidas</button>
-    </div>
+    <section class="global-bar" aria-label="Filtros globais do dashboard">
+      <div>
+        <div class="filter-tags">
+          <span class="filter-tag">Período: {{ dashboard.period_label }}</span>
+          <span class="filter-tag">Empresa: {{ g.current_user.company_name }}</span>
+          <span class="filter-tag">Status: Todos</span>
+          <span class="filter-tag">Canal: Todos</span>
+          <span class="filter-tag">Dispositivo: Todos</span>
+        </div>
+        <div class="comparison-chips">
+          <span class="comparison-chip">vs período anterior</span>
+          <span class="comparison-chip">vs média trimestral</span>
+          <span class="comparison-chip">Benchmark interno</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button type="button" class="top-btn">Atualizar</button>
+        <button type="button" class="top-btn">Exportar</button>
+        <button type="button" class="top-btn">Ações rápidas</button>
+      </div>
+    </section>
   </section>
 
   {% set allowed = dashboard.widgets_allowed %}
@@ -192,14 +348,21 @@
   {% if allowed == 'all' or 'today_summary' in allowed %}
     <section class="section-block">
       <div class="section-header">
-        <h2>1. Executive Overview</h2>
+        <div>
+          <p class="section-eyebrow">Executive KPI Board</p>
+          <h2>Performance snapshot</h2>
+          <p class="section-description">KPIs críticos com leitura rápida, tendência e comparação contextual.</p>
+        </div>
         <span class="pill">Comparação habilitada</span>
       </div>
       <div class="metrics-grid">
         {% for kpi in dashboard.kpis %}
           {% set is_up = kpi.change >= 0 %}
           <article class="metric-card">
-            <div class="metric-title"><span>{{ kpi.icon }} {{ kpi.label }}</span><span class="{{ 'up' if is_up else 'down' }}">{{ '%+.1f'|format(kpi.change) }}%</span></div>
+            <div class="metric-title">
+              <span>{{ kpi.icon }} {{ kpi.label }}</span>
+              <span class="trend-badge {{ 'trend-up' if is_up else 'trend-down' }}">{{ '▲' if is_up else '▼' }} {{ '%+.1f'|format(kpi.change) }}%</span>
+            </div>
             <div class="metric-value">
               {% if kpi.currency %}R$ {% endif %}
               {{ '%.2f'|format(kpi.value) if kpi.currency else ('%.1f'|format(kpi.value) if kpi.suffix else kpi.value) }}{% if kpi.suffix %}{{ kpi.suffix }}{% endif %}
@@ -214,7 +377,14 @@
   <section class="widgets-grid">
     {% if allowed == 'all' or 'sales_performance' in allowed %}
       <article class="section-block col-8">
-        <div class="section-header"><h2>2. Sales Performance</h2><span class="pill">14 dias</span></div>
+        <div class="section-header">
+          <div>
+            <p class="section-eyebrow">Revenue Analytics</p>
+            <h2>Sales performance</h2>
+            <p class="section-description">Visual premium de ritmo de vendas com leitura de pico e consistência.</p>
+          </div>
+          <span class="pill">14 dias</span>
+        </div>
         <div class="mini-bars">
           {% for day in dashboard.daily_sales %}
             {% set normalized = (day.revenue / ((dashboard.daily_sales | map(attribute='revenue') | max) or 1)) * 100 %}
@@ -224,26 +394,44 @@
       </article>
 
       <article class="section-block col-4">
-        <div class="section-header"><h2>Top produtos</h2><span class="pill">Revenue</span></div>
-        <table>
-          <thead><tr><th>Produto</th><th>Qtd</th><th>Receita</th></tr></thead>
-          <tbody>
-            {% for product in dashboard.top_products %}
-              <tr><td>{{ product.name }}</td><td>{{ product.quantity }}</td><td>R$ {{ '%.2f'|format(product.revenue) }}</td></tr>
-            {% else %}
-              <tr><td colspan="3"><div class="empty-state">Sem vendas no período.</div></td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <div class="section-header">
+          <div>
+            <p class="section-eyebrow">Product Leaders</p>
+            <h2>Top produtos</h2>
+            <p class="section-description">Itens com maior contribuição de receita no período.</p>
+          </div>
+          <span class="pill">Revenue</span>
+        </div>
+        <div class="data-table-wrap">
+          <table>
+            <thead><tr><th>Produto</th><th>Qtd</th><th>Receita</th></tr></thead>
+            <tbody>
+              {% for product in dashboard.top_products %}
+                <tr><td>{{ product.name }}</td><td>{{ product.quantity }}</td><td>R$ {{ '%.2f'|format(product.revenue) }}</td></tr>
+              {% else %}
+                <tr><td colspan="3"><div class="empty-state">Sem vendas no período.</div></td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </article>
     {% endif %}
 
     {% if allowed == 'all' or 'traffic_acquisition' in allowed %}
       <article class="section-block col-6">
-        <div class="section-header"><h2>3. Traffic & Acquisition</h2><span class="pill">Insights</span></div>
+        <div class="section-header">
+          <div>
+            <p class="section-eyebrow">Acquisition Intelligence</p>
+            <h2>Traffic & acquisition</h2>
+            <p class="section-description">Resumo de canais e padrões de descoberta para orientar investimento.</p>
+          </div>
+          <span class="status-badge status-ok">Healthy mix</span>
+        </div>
         <ul class="insight-list">
           {% for insight in dashboard.insights %}
             <li>{{ insight }}</li>
+          {% else %}
+            <li>Nenhum insight disponível para o período atual.</li>
           {% endfor %}
         </ul>
       </article>
@@ -251,12 +439,19 @@
 
     {% if allowed == 'all' or 'operations' in allowed %}
       <article class="section-block col-6">
-        <div class="section-header"><h2>4. Operations & Order Control</h2><span class="pill">SLA</span></div>
+        <div class="section-header">
+          <div>
+            <p class="section-eyebrow">Operational Efficiency</p>
+            <h2>Operations & order control</h2>
+            <p class="section-description">Saúde operacional, SLA e indicadores de risco de execução.</p>
+          </div>
+          <span class="status-badge status-warn">SLA monitorado</span>
+        </div>
         <div class="split-grid">
-          <div class="metric-card"><div class="metric-title"><span>Pending payment</span></div><div class="metric-value">{{ dashboard.ops.pending_payment }}</div></div>
-          <div class="metric-card"><div class="metric-title"><span>Approved orders</span></div><div class="metric-value">{{ dashboard.ops.approved_orders }}</div></div>
-          <div class="metric-card"><div class="metric-title"><span>Cancelled</span></div><div class="metric-value">{{ dashboard.ops.cancelled_orders }}</div></div>
-          <div class="metric-card"><div class="metric-title"><span>Awaiting shipping</span></div><div class="metric-value">{{ dashboard.ops.awaiting_shipping }}</div></div>
+          <div class="metric-card"><div class="metric-title"><span>Pending payment</span><span class="status-badge status-warn">Atenção</span></div><div class="metric-value">{{ dashboard.ops.pending_payment }}</div></div>
+          <div class="metric-card"><div class="metric-title"><span>Approved orders</span><span class="status-badge status-ok">Estável</span></div><div class="metric-value">{{ dashboard.ops.approved_orders }}</div></div>
+          <div class="metric-card"><div class="metric-title"><span>Cancelled</span><span class="status-badge status-danger">Crítico</span></div><div class="metric-value">{{ dashboard.ops.cancelled_orders }}</div></div>
+          <div class="metric-card"><div class="metric-title"><span>Awaiting shipping</span><span class="status-badge status-warn">Fila</span></div><div class="metric-value">{{ dashboard.ops.awaiting_shipping }}</div></div>
           <div class="metric-card"><div class="metric-title"><span>Processing time (min)</span></div><div class="metric-value">{{ dashboard.ops.avg_processing_time }}</div></div>
           <div class="metric-card"><div class="metric-title"><span>Payment approval rate</span></div><div class="metric-value">{{ '%.1f'|format(dashboard.ops.approval_rate) }}%</div></div>
         </div>
@@ -265,7 +460,14 @@
 
     {% if allowed == 'all' or 'geography' in allowed %}
       <article class="section-block col-6">
-        <div class="section-header"><h2>5. Geographic Intelligence</h2><span class="pill">Brasil + Global</span></div>
+        <div class="section-header">
+          <div>
+            <p class="section-eyebrow">Regional Signal</p>
+            <h2>Geographic intelligence</h2>
+            <p class="section-description">Distribuição de receita por origem com visualização comparativa.</p>
+          </div>
+          <span class="pill">Brasil + Global</span>
+        </div>
         <div class="state-list">
           {% for item in dashboard.source_summary %}
             {% set percent = (item.orders / ((dashboard.source_summary | map(attribute='orders') | max) or 1)) * 100 %}
@@ -278,12 +480,20 @@
             <div class="empty-state">Ainda não há distribuição geográfica por vendas.</div>
           {% endfor %}
         </div>
+        <div class="map-placeholder">Mapa estratégico (heat zones): áreas com maior demanda e potencial de expansão logística.</div>
       </article>
     {% endif %}
 
     {% if allowed == 'all' or 'customer_intelligence' in allowed %}
       <article class="section-block col-6">
-        <div class="section-header"><h2>6. Customer Intelligence</h2><span class="pill">Growth</span></div>
+        <div class="section-header">
+          <div>
+            <p class="section-eyebrow">Customer Depth</p>
+            <h2>Customer intelligence</h2>
+            <p class="section-description">Retenção, frequência e valor por cliente para decisões de crescimento.</p>
+          </div>
+          <span class="status-badge status-ok">Growth</span>
+        </div>
         <div class="split-grid">
           <div class="metric-card"><div class="metric-title"><span>Novos clientes</span></div><div class="metric-value">{{ dashboard.kpis[7].value }}</div></div>
           <div class="metric-card"><div class="metric-title"><span>Clientes recorrentes</span></div><div class="metric-value">{{ (dashboard.kpis[3].value * 0.41)|round|int }}</div></div>
@@ -295,33 +505,44 @@
 
     {% if allowed == 'all' or 'product_intelligence' in allowed %}
       <article class="section-block col-12">
-        <div class="section-header"><h2>7. Product Intelligence</h2><span class="pill">Mix + estoque</span></div>
+        <div class="section-header">
+          <div>
+            <p class="section-eyebrow">Catalog Control</p>
+            <h2>Product intelligence</h2>
+            <p class="section-description">Balanceamento entre risco de ruptura, inovação e margem.</p>
+          </div>
+          <span class="pill">Mix + estoque</span>
+        </div>
         <div class="split-grid">
           <div>
-            <h3 style="font-family:Poppins,sans-serif;font-size:.9rem;margin-bottom:8px;color:#7f6878;">Produtos com estoque baixo</h3>
-            <table>
-              <thead><tr><th>Produto</th><th>SKU</th><th>Estoque</th></tr></thead>
-              <tbody>
-                {% for product in dashboard.low_stock_products %}
-                  <tr><td>{{ product.name }}</td><td>{{ product.sku }}</td><td>{{ product.stock }}</td></tr>
-                {% else %}
-                  <tr><td colspan="3"><div class="empty-state">Sem alertas de baixo estoque.</div></td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
+            <h3 style="font-family:Poppins,sans-serif;font-size:.86rem;margin-bottom:10px;color:#7f6878;">Produtos com estoque baixo</h3>
+            <div class="data-table-wrap">
+              <table>
+                <thead><tr><th>Produto</th><th>SKU</th><th>Status</th><th>Estoque</th></tr></thead>
+                <tbody>
+                  {% for product in dashboard.low_stock_products %}
+                    <tr><td>{{ product.name }}</td><td>{{ product.sku }}</td><td><span class="status-badge status-danger">Baixo</span></td><td>{{ product.stock }}</td></tr>
+                  {% else %}
+                    <tr><td colspan="4"><div class="empty-state">Sem alertas de baixo estoque.</div></td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </div>
           <div>
-            <h3 style="font-family:Poppins,sans-serif;font-size:.9rem;margin-bottom:8px;color:#7f6878;">Produtos novos / em destaque</h3>
-            <table>
-              <thead><tr><th>Produto</th><th>Categoria</th><th>Preço</th></tr></thead>
-              <tbody>
-                {% for product in dashboard.new_products %}
-                  <tr><td>{{ product.name }}</td><td>{{ product.category }}</td><td>R$ {{ '%.2f'|format(product.price) }}</td></tr>
-                {% else %}
-                  <tr><td colspan="3"><div class="empty-state">Sem novos produtos.</div></td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
+            <h3 style="font-family:Poppins,sans-serif;font-size:.86rem;margin-bottom:10px;color:#7f6878;">Produtos novos / em destaque</h3>
+            <div class="data-table-wrap">
+              <table>
+                <thead><tr><th>Produto</th><th>Categoria</th><th>Status</th><th>Preço</th></tr></thead>
+                <tbody>
+                  {% for product in dashboard.new_products %}
+                    <tr><td>{{ product.name }}</td><td>{{ product.category }}</td><td><span class="status-badge status-ok">Novo</span></td><td>R$ {{ '%.2f'|format(product.price) }}</td></tr>
+                  {% else %}
+                    <tr><td colspan="4"><div class="empty-state">Sem novos produtos.</div></td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </article>
@@ -329,12 +550,19 @@
 
     {% if allowed == 'all' or 'alerts' in allowed %}
       <article class="section-block col-12">
-        <div class="section-header"><h2>8. Alerts & Recommendations</h2><span class="pill">Smart alerts</span></div>
+        <div class="section-header">
+          <div>
+            <p class="section-eyebrow">Decision Engine</p>
+            <h2>Alerts & recommendations</h2>
+            <p class="section-description">Alertas acionáveis por prioridade para resposta executiva rápida.</p>
+          </div>
+          <span class="pill">Smart alerts</span>
+        </div>
         <ul class="alert-list">
           {% for alert in dashboard.alerts %}
-            <li>{{ alert.text }}</li>
+            <li class="{{ 'alert-high' if alert.severity == 'high' else ('alert-medium' if alert.severity == 'medium' else 'alert-low') }}">{{ alert.text }}</li>
           {% else %}
-            <li>Sem alertas críticos no momento.</li>
+            <li class="alert-low">Sem alertas críticos no momento.</li>
           {% endfor %}
         </ul>
       </article>
@@ -342,27 +570,52 @@
 
     {% if allowed == 'all' or 'recent_orders' in allowed %}
       <article class="section-block col-12">
-        <div class="section-header"><h2>Pedidos recentes</h2><span class="pill">Operacional</span></div>
-        <table>
-          <thead><tr><th>ID</th><th>Cliente</th><th>Origem</th><th>Status</th><th>Pagamento</th><th>Envio</th><th>Total</th></tr></thead>
-          <tbody>
-            {% for order in dashboard.recent_orders %}
-              <tr>
-                <td>#{{ order.id }}</td>
-                <td>{{ order.customer_name }}</td>
-                <td>{{ order.source }}</td>
-                <td>{{ order.status }}</td>
-                <td>{{ order.payment_status }}</td>
-                <td>{{ order.shipping_status }}</td>
-                <td>R$ {{ '%.2f'|format(order.total) }}</td>
-              </tr>
-            {% else %}
-              <tr><td colspan="7"><div class="empty-state">Nenhum pedido encontrado.</div></td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <div class="section-header">
+          <div>
+            <p class="section-eyebrow">Live Operations</p>
+            <h2>Pedidos recentes</h2>
+            <p class="section-description">Tabela refinada para leitura operacional com status e confiança de execução.</p>
+          </div>
+          <span class="pill">Operacional</span>
+        </div>
+        <div class="data-table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Cliente</th><th>Origem</th><th>Status</th><th>Pagamento</th><th>Envio</th><th>Total</th></tr></thead>
+            <tbody>
+              {% for order in dashboard.recent_orders %}
+                <tr>
+                  <td>#{{ order.id }}</td>
+                  <td>{{ order.customer_name }}</td>
+                  <td>{{ order.source }}</td>
+                  <td><span class="status-badge status-ok">{{ order.status }}</span></td>
+                  <td><span class="status-badge status-warn">{{ order.payment_status }}</span></td>
+                  <td><span class="status-badge status-ok">{{ order.shipping_status }}</span></td>
+                  <td>R$ {{ '%.2f'|format(order.total) }}</td>
+                </tr>
+              {% else %}
+                <tr><td colspan="7"><div class="empty-state">Nenhum pedido encontrado.</div></td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </article>
     {% endif %}
+
+    <article class="section-block col-12">
+      <div class="section-header">
+        <div>
+          <p class="section-eyebrow">Loading Preview</p>
+          <h2>Skeleton states</h2>
+          <p class="section-description">Pré-visualização do estado de carregamento para manter fluidez de interface.</p>
+        </div>
+        <span class="pill">UX polish</span>
+      </div>
+      <div class="skeleton-grid" aria-hidden="true">
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row" style="width: 84%;"></div>
+        <div class="skeleton-row" style="width: 72%;"></div>
+      </div>
+    </article>
 
     {% if allowed != 'all' and not allowed %}
       <article class="section-block col-12">
