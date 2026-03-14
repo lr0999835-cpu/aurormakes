@@ -7,62 +7,159 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header class="topo">
-    <div class="container nav-wrapper">
-      <a href="index.html" class="logo">Aurora <span>Makes</span></a>
-      <nav class="menu">
-        <a href="index.html">Início</a>
-        <a href="produtos.html">Produtos</a>
-        <a href="carrinho.html" class="cart-link">Carrinho <span id="cart-count" class="cart-count">0</span></a>
-      </nav>
+  <div class="announcement-bar">Frete grátis nas compras acima de R$ 199 | 5% OFF no Pix</div>
+
+  <header class="store-header">
+    <div class="container header-main">
+      <a href="index.html" class="logo" aria-label="Aurora Makes">
+        Aurora <span>Makes</span>
+      </a>
+      <form class="header-search" role="search" aria-label="Buscar produtos">
+        <input type="search" placeholder="O que você está procurando hoje?" aria-label="Buscar produtos" />
+        <button type="submit" aria-label="Buscar">
+          <span aria-hidden="true">⌕</span>
+        </button>
+      </form>
+      <div class="header-icons">
+        <a href="#" class="icon-btn" aria-label="Minha conta">👤</a>
+        <a href="carrinho.html" class="icon-btn cart-link" aria-label="Carrinho">
+          🛒 <span id="cart-count" class="cart-count">0</span>
+        </a>
+      </div>
     </div>
+
+    <nav class="mega-nav" aria-label="Categorias principais">
+      <div class="container mega-nav-list">
+        <a href="index.html">INÍCIO</a>
+        <a href="produtos.html">TODOS OS PRODUTOS</a>
+        <a href="produtos.html">PELE</a>
+        <div class="mega-item">
+          <button type="button" class="mega-trigger">SKINCARE</button>
+          <div class="mega-dropdown">
+            <div>
+              <h4>Skincare</h4>
+              <ul>
+                <li><a href="produtos.html">Sérum</a></li>
+                <li><a href="produtos.html">Sabonete</a></li>
+                <li><a href="produtos.html">Água micelar</a></li>
+                <li><a href="produtos.html">Argila</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Olhos</h4>
+              <ul>
+                <li><a href="produtos.html">Paleta de sombras</a></li>
+                <li><a href="produtos.html">Sobrancelhas</a></li>
+                <li><a href="produtos.html">Máscara de cílios</a></li>
+                <li><a href="produtos.html">Delineador</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Lábios</h4>
+              <ul>
+                <li><a href="produtos.html">Batom matte</a></li>
+                <li><a href="produtos.html">Gloss</a></li>
+                <li><a href="produtos.html">Lip tint</a></li>
+                <li><a href="produtos.html">Lápis labial</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Corpo & Capilares</h4>
+              <ul>
+                <li><a href="produtos.html">Hidratantes</a></li>
+                <li><a href="produtos.html">Esfoliantes</a></li>
+                <li><a href="produtos.html">Shampoo</a></li>
+                <li><a href="produtos.html">Condicionador</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <a href="produtos.html">OLHOS</a>
+        <a href="produtos.html">LÁBIOS</a>
+        <a href="produtos.html">ACESSÓRIOS</a>
+        <a href="produtos.html">PRODUTOS CAPILARES</a>
+        <a href="produtos.html">PRODUTOS CORPORAIS</a>
+        <a href="produtos.html">ÁREA KIDS</a>
+      </div>
+    </nav>
   </header>
 
   <main>
-    <section class="hero">
-      <div class="container hero-grid">
-        <div>
-          <p class="tag">Nova coleção glow</p>
-          <h1>Maquiagem moderna para sua rotina de beleza</h1>
-          <p>Descubra produtos com acabamento profissional para realçar sua beleza com praticidade.</p>
-          <a class="btn" href="produtos.html">Ver produtos</a>
+    <section class="hero-banner container">
+      <button class="carousel-arrow prev" type="button" data-target="hero" aria-label="Banner anterior">‹</button>
+      <div class="hero-content" id="hero-track">
+        <div class="hero-copy">
+          <p class="hero-kicker">LINHA PREMIUM</p>
+          <h1>Conheça os <span>ESFOLIANTES PORÁN</span></h1>
+          <p>O segredo para uma pele sedosa &amp; macia</p>
+          <a href="produtos.html" class="btn">COMPRAR AGORA</a>
         </div>
-        <div class="hero-image-box">
-          <img src="images/hero-makeup.svg" alt="Kit de maquiagem Aurora Makes" class="hero-image">
+        <div class="hero-image-wrap">
+          <img src="images/hero-makeup.svg" alt="Produtos cosméticos da linha Porán" class="hero-image" loading="lazy">
         </div>
+      </div>
+      <button class="carousel-arrow next" type="button" data-target="hero" aria-label="Próximo banner">›</button>
+    </section>
+
+    <section class="container section category-section">
+      <h2 class="section-title">Categorias em destaque</h2>
+      <div class="carousel-shell">
+        <button class="carousel-arrow prev" type="button" data-target="categories" aria-label="Categoria anterior">‹</button>
+        <div class="categories-track" id="categories-track">
+          <article class="category-pill"><img src="images/base-glow.svg" alt="Categoria Pele" loading="lazy"><span>Pele</span></article>
+          <article class="category-pill"><img src="images/iluminador.svg" alt="Categoria Skincare" loading="lazy"><span>Skincare</span></article>
+          <article class="category-pill"><img src="images/mascara-cilios.svg" alt="Categoria Olhos" loading="lazy"><span>Olhos</span></article>
+          <article class="category-pill"><img src="images/batom-rose.svg" alt="Categoria Lábios" loading="lazy"><span>Lábios</span></article>
+          <article class="category-pill"><img src="images/paleta-aurora.svg" alt="Categoria Acessórios" loading="lazy"><span>Acessórios</span></article>
+          <article class="category-pill"><img src="images/blush-peach.svg" alt="Categoria Produtos capilares" loading="lazy"><span>Produtos capilares</span></article>
+        </div>
+        <button class="carousel-arrow next" type="button" data-target="categories" aria-label="Próxima categoria">›</button>
       </div>
     </section>
 
-    <section class="container section">
-      <h2 class="section-title">Destaques da semana</h2>
-      <div class="cards-grid" id="home-products"></div>
+    <section class="container section featured-products">
+      <h2 class="section-title">Para manter seu corpo bem cuidado</h2>
+      <div class="carousel-shell products-shell">
+        <button class="carousel-arrow prev" type="button" data-target="products" aria-label="Produtos anteriores">‹</button>
+        <div class="cards-grid" id="home-products"></div>
+        <button class="carousel-arrow next" type="button" data-target="products" aria-label="Próximos produtos">›</button>
+      </div>
     </section>
 
-    <section class="benefits">
-      <div class="container benefits-grid">
-        <article>
-          <h3>Entrega para todo Brasil</h3>
-          <p>Receba seus produtos com segurança e acompanhamento.</p>
-        </article>
-        <article>
-          <h3>Compra rápida</h3>
-          <p>Adicione ao carrinho e finalize seu pedido em poucos cliques.</p>
-        </article>
-        <article>
-          <h3>Atendimento pelo WhatsApp</h3>
-          <p>Finalize seu pedido e fale direto com nossa equipe.</p>
-        </article>
+    <section class="container section cosmetic-grid">
+      <h2 class="section-title">Explore por categoria cosmética</h2>
+      <div class="cosmetic-grid-items">
+        <article><h3>Pele</h3><p>Base, corretivo e iluminadores para acabamento natural.</p></article>
+        <article><h3>Skincare</h3><p>Rotina completa de tratamento diário com ativos selecionados.</p></article>
+        <article><h3>Olhos</h3><p>Sombras, máscaras e delineadores para destacar seu olhar.</p></article>
+        <article><h3>Lábios</h3><p>Cores intensas, glosses e hidratação para todos os estilos.</p></article>
       </div>
     </section>
   </main>
 
-  <footer class="rodape">
-    <div class="container">
-      <p>© 2026 Aurora Makes - Loja online de maquiagem.</p>
+  <footer class="store-footer">
+    <div class="container footer-grid">
+      <div>
+        <h4>Aurora Makes</h4>
+        <p>Beleza inteligente com acabamento profissional para todos os tons de pele.</p>
+      </div>
+      <div>
+        <h4>Institucional</h4>
+        <a href="#">Sobre nós</a>
+        <a href="#">Política de privacidade</a>
+        <a href="#">Trocas e devoluções</a>
+      </div>
+      <div>
+        <h4>Atendimento</h4>
+        <a href="#">Contato</a>
+        <a href="#">Minha conta</a>
+        <a href="carrinho.html">Carrinho</a>
+      </div>
     </div>
   </footer>
 
   <script src="js/produtos.js"></script>
   <script src="js/main.js"></script>
+  <script src="js/storefront.js"></script>
 </body>
 </html>

@@ -153,11 +153,18 @@ function createProductCardElement(product) {
   card.setAttribute("role", "button");
   card.setAttribute("tabindex", "0");
 
+  const installmentPrice = product.preco / 6;
+  const stockWarning = product.estoque <= 5 ? `<p class="stock-warning">Apenas ${Math.max(product.estoque, 0)} em estoque</p>` : "";
+
   card.innerHTML = `
-    <img src="${product.imagem}" alt="${product.nome}">
-    <h3>${product.nome}</h3>
-    <p class="price">${formatPrice(product.preco)}</p>
-    <button type="button">Adicionar ao carrinho</button>
+    <img src="${product.imagem}" alt="${product.nome}" class="card-image" loading="lazy">
+    <div class="card-content">
+      <h3>${product.nome}</h3>
+      <p class="price">${formatPrice(product.preco)}</p>
+      <p class="installments">ou 6x de ${formatPrice(installmentPrice)} sem juros</p>
+      ${stockWarning}
+      <button type="button">Adicionar ao carrinho</button>
+    </div>
   `;
 
   const addButton = card.querySelector("button");
@@ -195,7 +202,7 @@ function renderProducts(targetId, products) {
 }
 
 function renderHomeProducts() {
-  const destaques = catalogoProdutos.slice(0, 3);
+  const destaques = catalogoProdutos.slice(0, 10);
   renderProducts("home-products", destaques);
 }
 
