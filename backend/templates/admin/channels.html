@@ -1,82 +1,64 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin | Canais</title>
-  <link rel="stylesheet" href="/css/style.css">
-  <style>
-    .grid { display:grid; grid-template-columns: 1fr 1.4fr; gap:16px; }
-    .card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:16px; }
-    .form { display:grid; gap:10px; }
-    .form input, .form select { padding:10px; border:1px solid var(--border); border-radius:10px; }
-    table { width:100%; border-collapse: collapse; }
-    th, td { border-bottom:1px solid var(--border); padding:8px; text-align:left; }
-  </style>
-</head>
-<body>
-<header class="topo">
-  <div class="container nav-wrapper">
-    <a href="/" class="logo">Aurora <span>Makes</span></a>
-    <nav class="menu">
-      <a href="/admin/dashboard">Dashboard</a>
-      <a href="/admin/orders">Pedidos</a>
-      <a href="/admin/stock">Estoque</a>
-      <a href="/admin/products">Produtos</a>
-      <a href="/admin/channels" class="active">Canais</a>
-      <a href="/admin/integrations">Integrações</a>
-    </nav>
-  </div>
-</header>
+{% extends 'admin/_layout.html' %}
 
-<main class="container section">
-  <h1 class="section-title">Mapeamento de Produtos por Canal</h1>
-  <div class="grid">
-    <section class="card">
-      <h2>Novo mapeamento</h2>
-      <form class="form" method="post" action="{{ url_for('admin.admin_save_channel_mapping') }}">
-        <label>Produto interno</label>
-        <select name="product_id" required>
-          <option value="">Selecione</option>
-          {% for product in products %}
-            <option value="{{ product.id }}">{{ product.name }} ({{ product.sku or '-' }})</option>
-          {% endfor %}
-        </select>
-        <label>Canal</label>
-        <select name="channel_name" required>
-          {% for source in order_sources %}
-            {% if source != 'aurora_makes' %}
-              <option value="{{ source }}">{{ source }}</option>
-            {% endif %}
-          {% endfor %}
-        </select>
-        <input name="external_product_id" placeholder="ID do produto externo" required>
-        <input name="external_sku" placeholder="SKU externo">
-        <label><input type="checkbox" name="is_active" checked> Mapeamento ativo</label>
-        <button class="btn" type="submit">Salvar mapeamento</button>
-      </form>
-    </section>
+{% block title %}Admin | Canais{% endblock %}
 
-    <section class="card">
-      <h2>Mapeamentos existentes</h2>
-      <table>
-        <thead><tr><th>Produto</th><th>Canal</th><th>ID externo</th><th>SKU externo</th><th>Status</th></tr></thead>
-        <tbody>
-          {% for item in mappings %}
-            <tr>
-              <td>{{ item.product_name }} ({{ item.product_sku or '-' }})</td>
-              <td>{{ item.channel_name }}</td>
-              <td>{{ item.external_product_id }}</td>
-              <td>{{ item.external_sku or '-' }}</td>
-              <td>{{ 'Ativo' if item.is_active else 'Inativo' }}</td>
-            </tr>
-          {% else %}
-            <tr><td colspan="5">Nenhum mapeamento cadastrado.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
-  </div>
-</main>
-</body>
-</html>
+{% block head_extra %}
+<style>
+  .grid { display:grid; grid-template-columns: 1fr 1.4fr; gap:16px; }
+  .card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:16px; }
+  .form { display:grid; gap:10px; }
+  .form input, .form select { padding:10px; border:1px solid var(--border); border-radius:10px; }
+  table { width:100%; border-collapse: collapse; }
+  th, td { border-bottom:1px solid var(--border); padding:8px; text-align:left; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="section-title">Mapeamento de Produtos por Canal</h1>
+<div class="grid">
+  <section class="card">
+    <h2>Novo mapeamento</h2>
+    <form class="form" method="post" action="{{ url_for('admin.admin_save_channel_mapping') }}">
+      <label>Produto interno</label>
+      <select name="product_id" required>
+        <option value="">Selecione</option>
+        {% for product in products %}
+          <option value="{{ product.id }}">{{ product.name }} ({{ product.sku or '-' }})</option>
+        {% endfor %}
+      </select>
+      <label>Canal</label>
+      <select name="channel_name" required>
+        {% for source in order_sources %}
+          {% if source != 'aurora_makes' %}
+            <option value="{{ source }}">{{ source }}</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+      <input name="external_product_id" placeholder="ID do produto externo" required>
+      <input name="external_sku" placeholder="SKU externo">
+      <label><input type="checkbox" name="is_active" checked> Mapeamento ativo</label>
+      <button class="btn" type="submit">Salvar mapeamento</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Mapeamentos existentes</h2>
+    <table>
+      <thead><tr><th>Produto</th><th>Canal</th><th>ID externo</th><th>SKU externo</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for item in mappings %}
+          <tr>
+            <td>{{ item.product_name }} ({{ item.product_sku or '-' }})</td>
+            <td>{{ item.channel_name }}</td>
+            <td>{{ item.external_product_id }}</td>
+            <td>{{ item.external_sku or '-' }}</td>
+            <td>{{ 'Ativo' if item.is_active else 'Inativo' }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5">Nenhum mapeamento cadastrado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

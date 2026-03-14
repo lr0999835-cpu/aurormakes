@@ -9,6 +9,14 @@
   --text-soft: #7e6e78;
   --white: #ffffff;
   --border-soft: #e8d9e2;
+  --border: #e8dde5;
+  --admin-bg: #f7f3f6;
+  --admin-surface: #ffffff;
+  --admin-brand: #c79ab6;
+  --admin-brand-dark: #9e6e91;
+  --admin-text: #2d2430;
+  --admin-muted: #7a6a74;
+  --admin-hover: #f3e8f0;
   --hover-pink: #ebc8db;
   --radius-card: 18px;
   --radius-pill: 999px;
@@ -597,6 +605,156 @@ a { text-decoration: none; color: inherit; }
   font-size: 0.93rem;
 }
 
+
+
+/* Admin dashboard shell */
+.admin-body {
+  background: var(--admin-bg);
+  color: var(--admin-text);
+}
+
+.admin-header {
+  position: sticky;
+  top: 0;
+  z-index: 140;
+  backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--admin-bg) 88%, white 12%);
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  justify-content: space-between;
+  min-height: 84px;
+}
+
+.admin-brand {
+  min-width: 200px;
+  background: linear-gradient(135deg, var(--admin-brand), var(--admin-brand-dark));
+  color: #fff;
+  border-radius: 16px;
+  padding: 12px 16px;
+  box-shadow: 0 10px 24px rgba(158, 110, 145, 0.28);
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-brand-title {
+  font-family: "Playfair Display", serif;
+  font-size: 1.3rem;
+  line-height: 1.1;
+}
+
+.admin-brand-subtitle {
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  opacity: 0.86;
+}
+
+.admin-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.admin-nav-link {
+  border-radius: 999px;
+  padding: 10px 14px;
+  color: var(--admin-muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-nav-link:hover {
+  background: var(--admin-hover);
+  color: var(--admin-brand-dark);
+}
+
+.admin-nav-link:focus-visible,
+.admin-mobile-nav summary:focus-visible,
+.admin-mobile-nav-panel a:focus-visible {
+  outline: 2px solid var(--admin-brand-dark);
+  outline-offset: 2px;
+}
+
+.admin-nav-link.is-active {
+  background: var(--admin-hover);
+  color: var(--admin-brand-dark);
+  box-shadow: inset 0 0 0 1px #e7d4df;
+}
+
+.admin-main {
+  padding-top: 28px;
+}
+
+.admin-main .section-title {
+  color: var(--admin-brand-dark);
+  margin-bottom: 18px;
+}
+
+.admin-mobile-nav {
+  position: relative;
+  display: none;
+}
+
+.admin-mobile-nav summary {
+  list-style: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  display: grid;
+  place-content: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.admin-mobile-nav summary::-webkit-details-marker { display: none; }
+
+.admin-mobile-nav summary span {
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--admin-brand-dark);
+}
+
+.admin-mobile-nav-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: min(280px, 80vw);
+  display: grid;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 8px;
+  box-shadow: 0 14px 34px rgba(94, 66, 88, 0.16);
+}
+
+.admin-mobile-nav-panel a {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 600;
+  color: var(--admin-muted);
+}
+
+.admin-mobile-nav-panel a:hover,
+.admin-mobile-nav-panel a[aria-current="page"] {
+  background: var(--admin-hover);
+  color: var(--admin-brand-dark);
+}
+
 /* Compatibility styles for existing cart/order pages */
 .topo { background: transparent; }
 .nav-wrapper, .menu { display: flex; }
@@ -647,6 +805,20 @@ a { text-decoration: none; color: inherit; }
   .mega-nav-list { justify-content: flex-start; }
   .mega-dropdown { grid-template-columns: repeat(3, minmax(140px, 1fr)); }
   .cards-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 920px) {
+  .admin-header-inner {
+    min-height: 74px;
+  }
+
+  .admin-nav {
+    display: none;
+  }
+
+  .admin-mobile-nav {
+    display: block;
+  }
 }
 
 @media (max-width: 860px) {

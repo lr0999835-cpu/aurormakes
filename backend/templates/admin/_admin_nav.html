@@ -1,0 +1,37 @@
+{% set nav_items = [
+  ('Dashboard', url_for('admin.admin_dashboard')),
+  ('Pedidos', url_for('admin.admin_orders')),
+  ('Estoque', url_for('admin.admin_stock')),
+  ('Produtos', url_for('admin.admin_products')),
+  ('Canais', url_for('admin.admin_channels')),
+  ('Integrações', url_for('admin.admin_integrations')),
+] %}
+<header class="admin-header">
+  <div class="container admin-header-inner">
+    <a href="/" class="admin-brand" aria-label="Aurora Makes - voltar para a loja">
+      <span class="admin-brand-title">Aurora Makes</span>
+      <span class="admin-brand-subtitle">Painel administrativo</span>
+    </a>
+
+    <details class="admin-mobile-nav" role="group">
+      <summary aria-label="Abrir menu de navegação administrativa">
+        <span></span>
+        <span></span>
+        <span></span>
+      </summary>
+      <nav class="admin-mobile-nav-panel" aria-label="Navegação mobile do admin">
+        {% for label, href in nav_items %}
+          {% set is_active = request.path == href %}
+          <a href="{{ href }}" {% if is_active %}aria-current="page"{% endif %}>{{ label }}</a>
+        {% endfor %}
+      </nav>
+    </details>
+
+    <nav class="admin-nav" aria-label="Navegação principal do admin">
+      {% for label, href in nav_items %}
+        {% set is_active = request.path == href %}
+        <a href="{{ href }}" class="admin-nav-link{% if is_active %} is-active{% endif %}" {% if is_active %}aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </nav>
+  </div>
+</header>

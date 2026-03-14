@@ -1,32 +1,14 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin | Integrações</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-<body>
-<header class="topo">
-  <div class="container nav-wrapper">
-    <a href="/" class="logo">Aurora <span>Makes</span></a>
-    <nav class="menu">
-      <a href="/admin/dashboard">Dashboard</a>
-      <a href="/admin/orders">Pedidos</a>
-      <a href="/admin/channels">Canais</a>
-      <a href="/admin/integrations" class="active">Integrações</a>
-    </nav>
-  </div>
-</header>
-<main class="container section">
-  <h1 class="section-title">Integrações (Preparação)</h1>
-  <p>Esta tela confirma que a arquitetura está pronta para integração futura com marketplaces, logística e ERP.</p>
-  <ul>
-    <li>Pedidos já suportam origem e IDs externos.</li>
-    <li>Produtos já suportam SKU interno e mapeamento por canal.</li>
-    <li>Estoque é central e rastreia movimentações por origem.</li>
-  </ul>
-  <p>Próximo passo: configurar credenciais reais e implementar sincronizadores de API.</p>
-</main>
-</body>
-</html>
+{% extends 'admin/_layout.html' %}
+
+{% block title %}Admin | Integrações{% endblock %}
+
+{% block content %}
+<h1 class="section-title">Integrações (Preparação)</h1>
+<p>Esta tela confirma que a arquitetura está pronta para integração futura com marketplaces, logística e ERP.</p>
+<ul>
+  <li>Pedidos já suportam origem e IDs externos.</li>
+  <li>Produtos já suportam SKU interno e mapeamento por canal.</li>
+  <li>Estoque é central e rastreia movimentações por origem.</li>
+</ul>
+<p>Próximo passo: configurar credenciais reais e implementar sincronizadores de API.</p>
+{% endblock %}
