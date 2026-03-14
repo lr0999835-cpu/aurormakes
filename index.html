@@ -217,32 +217,21 @@
   <main>
     <section class="hero-banner" aria-label="Campanhas em destaque">
       <button class="carousel-arrow prev" type="button" data-target="hero" aria-label="Banner anterior">←</button>
-      <div class="hero-slider" id="hero-track">
-        <article class="hero-slide active" data-slide>
-          <div class="container hero-content">
-            <div class="hero-copy">
-              <p class="hero-kicker">Conheça os</p>
-              <h1><span>ESFOLIANTES PORÁN</span></h1>
-              <p>O segredo para uma pele <strong>sedosa &amp; macia!</strong></p>
-              <a href="produtos.html" class="btn">SAIBA MAIS</a>
-            </div>
-            <div class="hero-art hero-art-esfoliantes" aria-hidden="true">
-              <span></span><span></span><span></span><span></span>
-            </div>
-          </div>
-        </article>
-
-        <article class="hero-slide" data-slide>
-          <div class="container hero-content hero-content-pink">
-            <div class="hero-copy hero-copy-invert">
-              <h2>BODY SPLASH<br><em>Rose Essence</em></h2>
-              <p>ENCANTADOR</p>
-              <a href="produtos.html" class="btn btn-rose">ÓTIMA FIXAÇÃO</a>
-            </div>
-          </div>
-        </article>
-      </div>
+      <div class="hero-slider" id="hero-track" aria-live="polite"></div>
       <button class="carousel-arrow next" type="button" data-target="hero" aria-label="Próximo banner">→</button>
+      <div class="hero-dots" id="hero-dots" aria-label="Navegação dos banners"></div>
+      <template id="hero-slide-template">
+        <article class="hero-slide" data-slide>
+          <img class="hero-image" alt="" decoding="async">
+          <div class="hero-overlay container">
+            <div class="hero-copy">
+              <p class="sr-only" data-hero-title></p>
+              <p class="sr-only" data-hero-subtitle></p>
+              <a class="btn hero-cta" data-hero-cta>Ver campanha</a>
+            </div>
+          </div>
+        </article>
+      </template>
     </section>
 
     <section class="container section category-section">
