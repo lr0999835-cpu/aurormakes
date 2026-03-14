@@ -1,17 +1,17 @@
 {% set nav_items = [
-  ('Dashboard', 'dashboard:read', url_for('admin.admin_dashboard'), '📊'),
-  ('Pedidos', 'orders:read', url_for('admin.admin_orders'), '🧾'),
-  ('Produtos', 'products:read', url_for('admin.admin_products'), '🧁'),
-  ('Clientes', 'orders:read', url_for('admin.admin_orders'), '👥'),
-  ('Marketing', 'integrations:read', url_for('admin.admin_integrations'), '📣'),
-  ('Relatórios', 'dashboard:read', url_for('admin.admin_dashboard'), '📈'),
-  ('Inventário', 'stock:read', url_for('admin.admin_stock'), '📦'),
-  ('Financeiro', 'dashboard:read', url_for('admin.admin_dashboard'), '💸'),
-  ('Canais', 'channels:read', url_for('admin.admin_channels'), '🛒'),
-  ('Integrações', 'integrations:read', url_for('admin.admin_integrations'), '🔌'),
-  ('Empresas', 'users:read', url_for('admin.admin_companies'), '🏢') if g.current_user.role == 'super_admin' else none,
-  ('Usuários', 'users:read', url_for('admin.admin_users'), '🧑‍💼'),
-  ('Permissões', 'permissions:read', url_for('admin.admin_permissions'), '🔐')
+  ('Dashboard', 'dashboard:read', url_for('admin.admin_dashboard'), '◉'),
+  ('Pedidos', 'orders:read', url_for('admin.admin_orders'), '▦'),
+  ('Produtos', 'products:read', url_for('admin.admin_products'), '◫'),
+  ('Clientes', 'orders:read', url_for('admin.admin_orders'), '◌'),
+  ('Marketing', 'integrations:read', url_for('admin.admin_integrations'), '◍'),
+  ('Relatórios', 'dashboard:read', url_for('admin.admin_dashboard'), '◔'),
+  ('Inventário', 'stock:read', url_for('admin.admin_stock'), '◬'),
+  ('Financeiro', 'dashboard:read', url_for('admin.admin_dashboard'), '◒'),
+  ('Canais', 'channels:read', url_for('admin.admin_channels'), '◐'),
+  ('Integrações', 'integrations:read', url_for('admin.admin_integrations'), '◎'),
+  ('Empresas', 'users:read', url_for('admin.admin_companies'), '◈') if g.current_user.role == 'super_admin' else none,
+  ('Usuários', 'users:read', url_for('admin.admin_users'), '◉'),
+  ('Permissões', 'permissions:read', url_for('admin.admin_permissions'), '◍')
 ] %}
 {% set allowed_items = [] %}
 {% for item in nav_items %}
@@ -25,15 +25,22 @@
 
 <aside class="admin-sidebar" aria-label="Menu lateral administrativo">
   <a href="{{ url_for('admin.admin_dashboard') }}" class="admin-brand" aria-label="Aurora Makes dashboard">
+    <span class="admin-brand-eyebrow">Aurora Makes</span>
     <span class="admin-brand-title">{{ g.current_user.company_name }}</span>
-    <span class="admin-brand-subtitle">Executive panel</span>
+    <span class="admin-brand-subtitle">Enterprise command center</span>
   </a>
+
+  <div class="admin-sidebar-kpi">
+    <p>Health score</p>
+    <strong>97.4</strong>
+    <span>↑ +2.1 this week</span>
+  </div>
 
   <nav class="admin-side-nav" aria-label="Navegação principal">
     {% for label, href, icon in allowed_items %}
       {% set is_active = request.path == href %}
       <a href="{{ href }}" class="admin-nav-link{% if is_active %} is-active{% endif %}" {% if is_active %}aria-current="page"{% endif %}>
-        <span>{{ icon }}</span>
+        <span class="nav-icon">{{ icon }}</span>
         <span>{{ label }}</span>
       </a>
     {% endfor %}
@@ -42,8 +49,8 @@
 
 <header class="admin-topbar">
   <div class="admin-topbar-left">
-    <h2>Dashboard premium</h2>
-    <p>{{ g.current_user.role }} · {{ g.current_user.company_slug }}</p>
+    <h2>Executive Dashboard</h2>
+    <p>{{ g.current_user.role }} · {{ g.current_user.company_slug }} · Updated now</p>
   </div>
 
   <form class="admin-topbar-search" role="search">
@@ -52,9 +59,9 @@
   </form>
 
   <div class="admin-topbar-actions">
-    <button type="button" class="topbar-icon" aria-label="Atalhos de data">📅</button>
-    <button type="button" class="topbar-icon" aria-label="Notificações">🔔</button>
-    <button type="button" class="topbar-icon" aria-label="Atualizar dashboard">↻</button>
+    <button type="button" class="topbar-icon" aria-label="Atalhos de data">⏱</button>
+    <button type="button" class="topbar-icon" aria-label="Notificações">✦</button>
+    <button type="button" class="topbar-icon" aria-label="Atualizar dashboard">⟳</button>
     <form class="admin-logout" method="post" action="{{ url_for('admin.admin_logout') }}">
       <span class="admin-user-pill">{{ g.current_user.role }}</span>
       <button type="submit" class="btn btn-outline">Sair</button>
