@@ -1,0 +1,11 @@
+{% extends 'admin/_layout.html' %}
+{% block title %}Acesso negado{% endblock %}
+{% block content %}
+<section class="auth-wrap">
+  <div class="auth-card">
+    <h1>Acesso negado</h1>
+    <p>Você não possui permissão para acessar esta área.</p>
+    <a class="btn" href="{{ url_for('admin.admin_home') if g.current_user else url_for('admin.admin_login') }}">Voltar</a>
+  </div>
+</section>
+{% endblock %}

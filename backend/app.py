@@ -17,12 +17,23 @@ def create_app():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
     app = Flask(__name__, template_folder="templates")
     app.secret_key = SECRET_KEY
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=not DEBUG,
+        PERMANENT_SESSION_LIFETIME=60 * 60 * 8,
+    )
 
     init_db()
 
     app.register_blueprint(products_bp)
     app.register_blueprint(operations_bp)
     app.register_blueprint(admin_bp)
+
+
+    @app.errorhandler(403)
+    def forbidden(_error):
+        return render_template("admin/forbidden.html"), 403
 
     @app.get("/")
     def home():

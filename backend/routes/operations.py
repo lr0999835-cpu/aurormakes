@@ -1,6 +1,7 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, g, jsonify, request
 import logging
 
+from auth import api_auth_required, tenant_for_request
 from services import (
     create_checkout,
     create_order,
@@ -20,8 +21,11 @@ operations_bp = Blueprint("operations_api", __name__, url_prefix="/api")
 @operations_bp.post("/orders")
 def post_order():
     payload = request.get_json(silent=True) or {}
+    company_id = tenant_for_request()
+    if not company_id:
+        return jsonify({"error": "Empresa inválida"}), 400
     try:
-        order = create_order(payload)
+        order = create_order(company_id, payload)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
@@ -30,9 +34,13 @@ def post_order():
 
 @operations_bp.get("/orders")
 def get_orders():
+    company_id = tenant_for_request()
+    if not company_id:
+        return jsonify([])
     orders = [
         order.to_dict()
         for order in list_orders(
+            company_id,
             source=request.args.get("source") or None,
             status=request.args.get("status") or None,
             payment_status=request.args.get("payment_status") or None,
@@ -44,10 +52,12 @@ def get_orders():
 
 
 @operations_bp.put("/orders/<int:order_id>/status")
+@api_auth_required("orders:write")
 def put_order_status(order_id):
     payload = request.get_json(silent=True) or {}
+    company_id = g.current_user["company_id"]
     try:
-        order = update_order_status(order_id, payload.get("status", ""))
+        order = update_order_status(company_id, order_id, payload.get("status", ""))
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
@@ -59,30 +69,37 @@ def put_order_status(order_id):
 
 @operations_bp.get("/dashboard")
 def get_dashboard():
-    return jsonify(get_dashboard_data())
+    company_id = tenant_for_request()
+    if not company_id:
+        return jsonify({"error": "Empresa inválida"}), 400
+    return jsonify(get_dashboard_data(company_id))
 
 
 @operations_bp.get("/stock/low")
+@api_auth_required("stock:read")
 def get_low_stock():
-    return jsonify([product.to_dict() for product in list_low_stock_products()])
+    return jsonify([product.to_dict() for product in list_low_stock_products(g.current_user["company_id"])])
 
 
 @operations_bp.get("/sold-products")
+@api_auth_required("dashboard:read")
 def sold_products():
-    return jsonify(get_sold_products())
+    return jsonify(get_sold_products(g.current_user["company_id"]))
 
 
 @operations_bp.post("/checkout")
 def post_checkout():
     payload = request.get_json(silent=True) or {}
     payload.setdefault("source", "aurora_makes")
+    company_id = tenant_for_request()
+    if not company_id:
+        return jsonify({"error": "Empresa inválida"}), 400
 
-    # unifica desktop/mobile no mesmo caminho de regra de negócio
     device_type = (request.headers.get("X-Device-Type") or payload.get("device_type") or "unknown").strip().lower()
     logger.info("Iniciando checkout. device_type=%s source=%s", device_type, payload.get("source"))
 
     try:
-        order = create_checkout(payload)
+        order = create_checkout(company_id, payload)
     except ValueError as exc:
         logger.warning("Falha de validação no checkout: %s", exc)
         return jsonify({"error": str(exc)}), 400
@@ -96,10 +113,14 @@ def post_checkout():
 @operations_bp.post("/payments/webhook")
 def payment_webhook():
     payload = request.get_json(silent=True) or {}
+    company_id = tenant_for_request()
+    if not company_id:
+        return jsonify({"error": "Empresa inválida"}), 400
+
     logger.info("Webhook de pagamento recebido. payment_id=%s", payload.get("payment_id") or payload.get("paymentId"))
 
     try:
-        result = register_payment_event(payload)
+        result = register_payment_event(company_id, payload)
     except ValueError as exc:
         logger.warning("Webhook inválido: %s", exc)
         return jsonify({"error": str(exc)}), 400

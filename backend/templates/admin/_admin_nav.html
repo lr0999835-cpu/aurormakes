@@ -1,15 +1,22 @@
 {% set nav_items = [
-  ('Dashboard', url_for('admin.admin_dashboard')),
-  ('Pedidos', url_for('admin.admin_orders')),
-  ('Estoque', url_for('admin.admin_stock')),
-  ('Produtos', url_for('admin.admin_products')),
-  ('Canais', url_for('admin.admin_channels')),
-  ('Integrações', url_for('admin.admin_integrations')),
+  ('Dashboard', 'dashboard:read', url_for('admin.admin_dashboard')),
+  ('Pedidos', 'orders:read', url_for('admin.admin_orders')),
+  ('Estoque', 'stock:read', url_for('admin.admin_stock')),
+  ('Produtos', 'products:read', url_for('admin.admin_products')),
+  ('Canais', 'channels:read', url_for('admin.admin_channels')),
+  ('Integrações', 'integrations:read', url_for('admin.admin_integrations')),
+  ('Usuários', 'users:read', url_for('admin.admin_users')),
 ] %}
+{% set allowed_items = [] %}
+{% for label, permission, href in nav_items %}
+  {% if g.can_access(permission) %}
+    {% set _ = allowed_items.append((label, href)) %}
+  {% endif %}
+{% endfor %}
 <header class="admin-header">
   <div class="container admin-header-inner">
     <a href="/" class="admin-brand" aria-label="Aurora Makes - voltar para a loja">
-      <span class="admin-brand-title">Aurora Makes</span>
+      <span class="admin-brand-title">{{ g.current_user.company_name }}</span>
       <span class="admin-brand-subtitle">Painel administrativo</span>
     </a>
 
@@ -20,7 +27,7 @@
         <span></span>
       </summary>
       <nav class="admin-mobile-nav-panel" aria-label="Navegação mobile do admin">
-        {% for label, href in nav_items %}
+        {% for label, href in allowed_items %}
           {% set is_active = request.path == href %}
           <a href="{{ href }}" {% if is_active %}aria-current="page"{% endif %}>{{ label }}</a>
         {% endfor %}
@@ -28,10 +35,15 @@
     </details>
 
     <nav class="admin-nav" aria-label="Navegação principal do admin">
-      {% for label, href in nav_items %}
+      {% for label, href in allowed_items %}
         {% set is_active = request.path == href %}
         <a href="{{ href }}" class="admin-nav-link{% if is_active %} is-active{% endif %}" {% if is_active %}aria-current="page"{% endif %}>{{ label }}</a>
       {% endfor %}
     </nav>
+
+    <form class="admin-logout" method="post" action="{{ url_for('admin.admin_logout') }}">
+      <span class="admin-user-pill">{{ g.current_user.role }}</span>
+      <button type="submit" class="btn btn-outline">Sair</button>
+    </form>
   </div>
 </header>
