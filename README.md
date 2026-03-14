@@ -153,3 +153,32 @@ Use o painel em `/admin/usuarios` com um usuário que tenha permissão `users:wr
 3. O backend salva a senha com hash via `werkzeug.security.generate_password_hash`.
 
 Também é possível criar via SQL/seed preenchendo `users.company_id`, `users.email`, `users.role` e `users.password_hash` (nunca salvar senha em texto puro).
+
+## Módulo de pagamentos (Brasil)
+### Timezone, moeda e formato
+- Timezone oficial: `America/Sao_Paulo`
+- Moeda: BRL (`R$`)
+- Datas: `DD/MM/AAAA`
+- Horário: `HH:mm`
+
+### Variáveis de ambiente
+```bash
+PAYMENT_GATEWAY=mercadopago
+MERCADO_PAGO_ACCESS_TOKEN=APP_USR-xxxx
+PAYMENT_GATEWAY_BASE_URL=https://api.mercadopago.com
+PAYMENT_GATEWAY_TIMEOUT_SECONDS=20
+PAYMENT_WEBHOOK_SECRET=seu-segredo-webhook
+PAYMENT_WEBHOOK_HEADER=X-Webhook-Secret
+STORE_PUBLIC_URL=https://sua-loja.com.br
+```
+
+### Rotas de pagamento
+- `POST /api/checkout` cria pedido + inicia pagamento (`pix`, `cartao`, `boleto`).
+- `POST /api/payments/webhook` recebe confirmação/recusa/estorno/cancelamento/expiração.
+- `GET /admin/payments` exibe painel financeiro com filtros, busca e indicadores.
+
+### Como testar
+1. **PIX**: no checkout selecione PIX. Confira `pix_copy_paste` e QR (quando retornado pelo gateway).
+2. **Cartão**: envie `payment_method=cartao` e `card.token` válido no payload do checkout.
+3. **Boleto**: selecione boleto e confira `boleto_barcode`/`boleto_url` no retorno e no admin.
+4. **Webhook**: envie evento para `/api/payments/webhook` com assinatura no header configurado.

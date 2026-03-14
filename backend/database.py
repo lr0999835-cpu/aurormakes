@@ -190,8 +190,15 @@ def init_db():
                 status TEXT NOT NULL DEFAULT 'pending',
                 source TEXT NOT NULL DEFAULT 'aurora_makes',
                 external_order_id TEXT DEFAULT '',
-                payment_status TEXT NOT NULL DEFAULT 'pending',
+                payment_status TEXT NOT NULL DEFAULT 'pendente',
                 payment_method TEXT DEFAULT '',
+                subtotal REAL NOT NULL DEFAULT 0,
+                shipping_amount REAL NOT NULL DEFAULT 0,
+                discount_amount REAL NOT NULL DEFAULT 0,
+                approved_at TEXT,
+                cancelled_at TEXT,
+                transaction_id TEXT DEFAULT '',
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 shipping_method TEXT DEFAULT '',
                 shipping_tracking_code TEXT DEFAULT '',
                 shipping_label_url TEXT DEFAULT '',
@@ -227,14 +234,44 @@ def init_db():
                 payment_id TEXT NOT NULL UNIQUE,
                 order_id INTEGER,
                 amount REAL NOT NULL DEFAULT 0,
-                status TEXT NOT NULL DEFAULT 'pending',
+                status TEXT NOT NULL DEFAULT 'pendente',
                 payment_method TEXT DEFAULT '',
                 source TEXT NOT NULL DEFAULT 'aurora_makes',
                 customer_phone TEXT DEFAULT '',
                 raw_payload TEXT DEFAULT '{}',
+                gateway TEXT DEFAULT 'mercadopago',
+                transaction_id TEXT DEFAULT '',
+                gateway_response TEXT DEFAULT '{}',
+                webhook_payload TEXT DEFAULT '{}',
+                pix_qr_code TEXT DEFAULT '',
+                pix_copy_paste TEXT DEFAULT '',
+                boleto_barcode TEXT DEFAULT '',
+                boleto_url TEXT DEFAULT '',
+                expires_at TEXT,
+                approved_at TEXT,
+                cancelled_at TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE SET NULL,
+                FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE
+            )
+            """
+        )
+
+
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS payment_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id INTEGER NOT NULL DEFAULT 1,
+                order_id INTEGER NOT NULL,
+                payment_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pendente',
+                payload TEXT DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE,
                 FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE
             )
             """
@@ -297,12 +334,34 @@ def init_db():
         _add_column_if_missing(conn, "orders", "internal_notes", "TEXT DEFAULT ''")
         _add_column_if_missing(conn, "orders", "company_id", "INTEGER NOT NULL DEFAULT 1")
 
+
+        _add_column_if_missing(conn, "orders", "subtotal", "REAL NOT NULL DEFAULT 0")
+        _add_column_if_missing(conn, "orders", "shipping_amount", "REAL NOT NULL DEFAULT 0")
+        _add_column_if_missing(conn, "orders", "discount_amount", "REAL NOT NULL DEFAULT 0")
+        _add_column_if_missing(conn, "orders", "approved_at", "TEXT")
+        _add_column_if_missing(conn, "orders", "cancelled_at", "TEXT")
+        _add_column_if_missing(conn, "orders", "transaction_id", "TEXT DEFAULT ''")
+        _add_column_if_missing(conn, "orders", "updated_at", "TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP")
+
         _add_column_if_missing(conn, "stock_movements", "source", "TEXT DEFAULT 'manual'")
         _add_column_if_missing(conn, "stock_movements", "reference_id", "TEXT DEFAULT ''")
         _add_column_if_missing(conn, "stock_movements", "company_id", "INTEGER NOT NULL DEFAULT 1")
 
         _add_column_if_missing(conn, "order_items", "company_id", "INTEGER NOT NULL DEFAULT 1")
         _add_column_if_missing(conn, "payments", "company_id", "INTEGER NOT NULL DEFAULT 1")
+
+        _add_column_if_missing(conn, "payments", "gateway", "TEXT DEFAULT 'mercadopago'")
+        _add_column_if_missing(conn, "payments", "transaction_id", "TEXT DEFAULT ''")
+        _add_column_if_missing(conn, "payments", "gateway_response", "TEXT DEFAULT '{}'")
+        _add_column_if_missing(conn, "payments", "webhook_payload", "TEXT DEFAULT '{}'")
+        _add_column_if_missing(conn, "payments", "pix_qr_code", "TEXT DEFAULT ''")
+        _add_column_if_missing(conn, "payments", "pix_copy_paste", "TEXT DEFAULT ''")
+        _add_column_if_missing(conn, "payments", "boleto_barcode", "TEXT DEFAULT ''")
+        _add_column_if_missing(conn, "payments", "boleto_url", "TEXT DEFAULT ''")
+        _add_column_if_missing(conn, "payments", "expires_at", "TEXT")
+        _add_column_if_missing(conn, "payments", "approved_at", "TEXT")
+        _add_column_if_missing(conn, "payments", "cancelled_at", "TEXT")
+
         _add_column_if_missing(conn, "product_channels", "company_id", "INTEGER NOT NULL DEFAULT 1")
 
         count = conn.execute("SELECT COUNT(*) as total FROM products WHERE company_id = 1").fetchone()["total"]

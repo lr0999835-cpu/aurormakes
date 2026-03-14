@@ -12,6 +12,7 @@ from services import (
     register_payment_event,
     update_order_status,
 )
+from payment_services.payments.service import process_webhook_event, validate_webhook
 
 logger = logging.getLogger(__name__)
 
@@ -117,13 +118,20 @@ def payment_webhook():
     if not company_id:
         return jsonify({"error": "Empresa inválida"}), 400
 
+    if not validate_webhook(request):
+        logger.warning("Webhook de pagamento rejeitado por assinatura inválida")
+        return jsonify({"error": "Webhook inválido"}), 401
+
     logger.info("Webhook de pagamento recebido. payment_id=%s", payload.get("payment_id") or payload.get("paymentId"))
 
     try:
-        result = register_payment_event(company_id, payload)
+        result = process_webhook_event(company_id, payload)
     except ValueError as exc:
-        logger.warning("Webhook inválido: %s", exc)
-        return jsonify({"error": str(exc)}), 400
+        logger.warning("Webhook com novo fluxo falhou (%s). Tentando compatibilidade antiga.", exc)
+        try:
+            result = register_payment_event(company_id, payload)
+        except ValueError:
+            return jsonify({"error": str(exc)}), 400
     except Exception:
         logger.exception("Falha ao processar webhook de pagamento")
         return jsonify({"error": "Falha ao processar webhook"}), 500
