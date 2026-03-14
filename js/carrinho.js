@@ -3,6 +3,8 @@ const CHECKOUT_STATE = {
   cep: "",
   selectedShippingId: "",
   shippingOptions: [],
+  shippingLoading: false,
+  shippingError: "",
   couponCode: "",
   discount: 0,
   paymentMethod: "pix",
@@ -28,12 +30,6 @@ const CHECKOUT_STATE = {
   selectedAddressId: "new"
 };
 
-const SHIPPING_CATALOG = [
-  { id: "correios-pac", label: "Correios PAC", price: 18.9, minDays: 5, maxDays: 10, badge: "Melhor custo-benefício", provider: "correios" },
-  { id: "correios-sedex", label: "Correios SEDEX", price: 34.9, minDays: 2, maxDays: 4, badge: "Mais rápido", provider: "correios" },
-  { id: "entrega-afiliada", label: "Entrega afiliada", price: 22.5, minDays: 3, maxDays: 7, badge: "Entrega parceira", provider: "affiliate" }
-];
-
 function removeFromCart(productId) { removeProductFromCart(productId); updateCartCount(); renderCartPage(); }
 function increaseCartQuantity(productId) { changeProductQuantity(productId, 1); updateCartCount(); renderCartPage(); }
 function decreaseCartQuantity(productId) { changeProductQuantity(productId, -1); updateCartCount(); renderCartPage(); }
@@ -43,7 +39,7 @@ function getSelectedShipping() {
 }
 
 function getShippingPrice() {
-  return getSelectedShipping()?.price || 0;
+  return getSelectedShipping()?.shipping_price || 0;
 }
 
 function calculateDiscount(subtotal) {
@@ -65,10 +61,6 @@ function getOrderTotals() {
   return { subtotal, shipping, discount, total };
 }
 
-function formatShippingETA(option) {
-  return `${option.minDays} a ${option.maxDays} dias úteis`;
-}
-
 function normalizeCep(value) {
   return value.replace(/\D/g, "").slice(0, 8);
 }
@@ -79,7 +71,7 @@ function formatCep(value) {
   return `${digits.slice(0, 5)}-${digits.slice(5)}`;
 }
 
-function calculateShippingByCep() {
+async function calculateShippingByCep() {
   const cep = normalizeCep(CHECKOUT_STATE.cep);
   if (cep.length !== 8) {
     alert("Informe um CEP válido com 8 números.");
@@ -87,16 +79,43 @@ function calculateShippingByCep() {
   }
 
   CHECKOUT_STATE.cep = formatCep(cep);
-  const regionFactor = Number(cep[0] || 0);
-  CHECKOUT_STATE.shippingOptions = SHIPPING_CATALOG.map((option) => ({
-    ...option,
-    price: Number((option.price + regionFactor * 0.35).toFixed(2))
-  }));
-
-  if (!CHECKOUT_STATE.selectedShippingId) {
-    CHECKOUT_STATE.selectedShippingId = CHECKOUT_STATE.shippingOptions[0].id;
-  }
+  CHECKOUT_STATE.shippingLoading = true;
+  CHECKOUT_STATE.shippingError = "";
   renderCartPage();
+
+  try {
+    const { subtotal } = getOrderTotals();
+    const detailedCart = getDetailedCartItems();
+    const response = await fetch("/api/shipping/quotes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cep,
+        subtotal,
+        items: detailedCart.map((item) => ({ product_id: item.id, quantity: item.quantidade }))
+      })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data?.error || "Não foi possível calcular o frete.");
+    }
+
+    CHECKOUT_STATE.shippingOptions = Array.isArray(data.quotes) ? data.quotes : [];
+    if (!CHECKOUT_STATE.shippingOptions.length) {
+      throw new Error("Nenhum método de envio disponível para este CEP.");
+    }
+    const stillExists = CHECKOUT_STATE.shippingOptions.some((option) => option.id === CHECKOUT_STATE.selectedShippingId);
+    CHECKOUT_STATE.selectedShippingId = stillExists
+      ? CHECKOUT_STATE.selectedShippingId
+      : CHECKOUT_STATE.shippingOptions[0].id;
+  } catch (error) {
+    CHECKOUT_STATE.shippingOptions = [];
+    CHECKOUT_STATE.selectedShippingId = "";
+    CHECKOUT_STATE.shippingError = error.message || "Não foi possível calcular o frete.";
+  } finally {
+    CHECKOUT_STATE.shippingLoading = false;
+    renderCartPage();
+  }
 }
 
 function moveToStep(nextStep) {
@@ -156,6 +175,7 @@ function handleAddressSelection(addressId) {
     CHECKOUT_STATE.cep = "";
     CHECKOUT_STATE.shippingOptions = [];
     CHECKOUT_STATE.selectedShippingId = "";
+    CHECKOUT_STATE.shippingError = "";
     renderCartPage();
     return;
   }
@@ -169,7 +189,21 @@ function handleAddressSelection(addressId) {
   applyAddressData(selected);
   CHECKOUT_STATE.shippingOptions = [];
   CHECKOUT_STATE.selectedShippingId = "";
+  CHECKOUT_STATE.shippingError = "";
   renderCartPage();
+}
+
+function getCustomerAddressData() {
+  return {
+    cep: normalizeCep(CHECKOUT_STATE.cep),
+    street: CHECKOUT_STATE.address.trim(),
+    number: CHECKOUT_STATE.number.trim(),
+    complement: CHECKOUT_STATE.complement.trim(),
+    district: CHECKOUT_STATE.district.trim(),
+    city: CHECKOUT_STATE.city.trim(),
+    state: CHECKOUT_STATE.state.trim().toUpperCase(),
+    reference: CHECKOUT_STATE.reference.trim()
+  };
 }
 
 function formatAddressPayload() {
@@ -246,7 +280,10 @@ async function createOrderFromCart() {
     subtotal,
     shipping_amount: shipping,
     discount_amount: discount,
-    shipping_method: selectedShipping?.label || "",
+    shipping_method: selectedShipping?.method_code || selectedShipping?.method_name || "",
+    shipping_eta: selectedShipping?.shipping_eta || "",
+    shipping_label: selectedShipping?.shipping_label || selectedShipping?.method_name || "",
+    customer_address_data: getCustomerAddressData(),
     items: detailedCart.map((item) => ({
       product_id: item.id,
       quantity: item.quantidade
@@ -300,6 +337,14 @@ function renderStepIndicator() {
 }
 
 function renderShippingOptions() {
+  if (CHECKOUT_STATE.shippingLoading) {
+    return '<p class="checkout-hint">Consultando opções de frete para o seu CEP...</p>';
+  }
+
+  if (CHECKOUT_STATE.shippingError) {
+    return `<p class="checkout-hint">${CHECKOUT_STATE.shippingError}</p>`;
+  }
+
   if (!CHECKOUT_STATE.shippingOptions.length) {
     return '<p class="checkout-hint">Informe o CEP e clique em <strong>Calcular frete</strong> para visualizar os métodos.</p>';
   }
@@ -308,10 +353,10 @@ function renderShippingOptions() {
     <label class="shipping-option ${CHECKOUT_STATE.selectedShippingId === option.id ? "selected" : ""}">
       <input type="radio" name="shipping-method" ${CHECKOUT_STATE.selectedShippingId === option.id ? "checked" : ""} onchange="handleShippingSelection('${option.id}')" />
       <div>
-        <p><strong>${option.label}</strong> <span class="badge">${option.badge}</span></p>
-        <small>${formatShippingETA(option)}</small>
+        <p><strong>${option.method_name}</strong> ${option.badge ? `<span class="badge">${option.badge}</span>` : ""}</p>
+        <small>${option.shipping_eta || "Prazo sob consulta"}</small>
       </div>
-      <strong>${formatPrice(option.price)}</strong>
+      <strong>${formatPrice(option.shipping_price || 0)}</strong>
     </label>
   `).join("")}</div>`;
 }

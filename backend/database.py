@@ -247,10 +247,13 @@ def init_db():
                 transaction_id TEXT DEFAULT '',
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 shipping_method TEXT DEFAULT '',
+                shipping_eta TEXT DEFAULT '',
+                shipping_label TEXT DEFAULT '',
                 shipping_tracking_code TEXT DEFAULT '',
                 shipping_label_url TEXT DEFAULT '',
                 shipping_status TEXT NOT NULL DEFAULT 'pending',
                 internal_notes TEXT DEFAULT '',
+                customer_address_data TEXT DEFAULT '{}',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE
             )
@@ -375,10 +378,13 @@ def init_db():
         _add_column_if_missing(conn, "orders", "payment_status", "TEXT NOT NULL DEFAULT 'pending'")
         _add_column_if_missing(conn, "orders", "payment_method", "TEXT DEFAULT ''")
         _add_column_if_missing(conn, "orders", "shipping_method", "TEXT DEFAULT ''")
+        _add_column_if_missing(conn, "orders", "shipping_eta", "TEXT DEFAULT ''")
+        _add_column_if_missing(conn, "orders", "shipping_label", "TEXT DEFAULT ''")
         _add_column_if_missing(conn, "orders", "shipping_tracking_code", "TEXT DEFAULT ''")
         _add_column_if_missing(conn, "orders", "shipping_label_url", "TEXT DEFAULT ''")
         _add_column_if_missing(conn, "orders", "shipping_status", "TEXT NOT NULL DEFAULT 'pending'")
         _add_column_if_missing(conn, "orders", "internal_notes", "TEXT DEFAULT ''")
+        _add_column_if_missing(conn, "orders", "customer_address_data", "TEXT DEFAULT '{}'")
         _add_column_if_missing(conn, "orders", "company_id", "INTEGER NOT NULL DEFAULT 1")
 
 

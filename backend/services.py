@@ -5,6 +5,7 @@ import logging
 from database import get_connection
 from models import Order, Product
 from payment_services.payments.service import create_payment_for_order, get_payment_events
+from shipping_services import normalize_order_address_data
 
 
 REQUIRED_FIELDS = ["name", "category", "price", "cost", "stock", "sku"]
@@ -265,6 +266,8 @@ def _normalize_order_payload(payload):
     if shipping_status not in SHIPPING_STATUSES:
         shipping_status = "pending"
 
+    customer_address_data = normalize_order_address_data(payload)
+
     return {
         "customer_name": (payload.get("customer_name") or payload.get("customerName") or "").strip(),
         "customer_phone": (payload.get("customer_phone") or payload.get("customerPhone") or "").strip(),
@@ -278,11 +281,14 @@ def _normalize_order_payload(payload):
         "subtotal": float(payload.get("subtotal") or 0),
         "shipping_amount": float(payload.get("shipping_amount") or payload.get("shippingAmount") or 0),
         "discount_amount": float(payload.get("discount_amount") or payload.get("discountAmount") or 0),
-        "shipping_method": (payload.get("shipping_method") or "").strip(),
-        "shipping_tracking_code": (payload.get("shipping_tracking_code") or "").strip(),
-        "shipping_label_url": (payload.get("shipping_label_url") or "").strip(),
+        "shipping_method": (payload.get("shipping_method") or payload.get("shippingMethod") or "").strip(),
+        "shipping_eta": (payload.get("shipping_eta") or payload.get("shippingEta") or "").strip(),
+        "shipping_label": (payload.get("shipping_label") or payload.get("shippingLabel") or "").strip(),
+        "shipping_tracking_code": (payload.get("shipping_tracking_code") or payload.get("shippingTrackingCode") or "").strip(),
+        "shipping_label_url": (payload.get("shipping_label_url") or payload.get("shippingLabelUrl") or "").strip(),
         "shipping_status": shipping_status,
-        "internal_notes": (payload.get("internal_notes") or "").strip(),
+        "internal_notes": (payload.get("internal_notes") or payload.get("internalNotes") or "").strip(),
+        "customer_address_data": customer_address_data,
     }
 
 
@@ -355,12 +361,15 @@ def create_order(company_id, payload):
                 shipping_amount,
                 discount_amount,
                 shipping_method,
+                shipping_eta,
+                shipping_label,
                 shipping_tracking_code,
                 shipping_label_url,
                 shipping_status,
-                internal_notes
+                internal_notes,
+                customer_address_data
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 int(company_id),
@@ -378,10 +387,13 @@ def create_order(company_id, payload):
                 data["shipping_amount"],
                 data["discount_amount"],
                 data["shipping_method"],
+                data["shipping_eta"],
+                data["shipping_label"],
                 data["shipping_tracking_code"],
                 data["shipping_label_url"],
                 data["shipping_status"],
                 data["internal_notes"],
+                json.dumps(data["customer_address_data"], ensure_ascii=False),
             ),
         )
         order_id = order_cursor.lastrowid

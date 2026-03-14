@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import json
 
 
 @dataclass
@@ -73,10 +74,13 @@ class Order:
     approved_at: str
     cancelled_at: str
     shipping_method: str
+    shipping_eta: str
+    shipping_label: str
     shipping_tracking_code: str
     shipping_label_url: str
     shipping_status: str
     internal_notes: str
+    customer_address_data: dict
     created_at: str
 
     @classmethod
@@ -100,10 +104,13 @@ class Order:
             approved_at=row["approved_at"] if "approved_at" in row.keys() else "",
             cancelled_at=row["cancelled_at"] if "cancelled_at" in row.keys() else "",
             shipping_method=row["shipping_method"] or "",
+            shipping_eta=row["shipping_eta"] if "shipping_eta" in row.keys() else "",
+            shipping_label=row["shipping_label"] if "shipping_label" in row.keys() else "",
             shipping_tracking_code=row["shipping_tracking_code"] or "",
             shipping_label_url=row["shipping_label_url"] or "",
             shipping_status=row["shipping_status"] or "pending",
             internal_notes=row["internal_notes"] or "",
+            customer_address_data=json.loads(row["customer_address_data"] or "{}") if "customer_address_data" in row.keys() else {},
             created_at=row["created_at"],
         )
 
@@ -127,9 +134,12 @@ class Order:
             "approved_at": self.approved_at,
             "cancelled_at": self.cancelled_at,
             "shipping_method": self.shipping_method,
+            "shipping_eta": self.shipping_eta,
+            "shipping_label": self.shipping_label,
             "shipping_tracking_code": self.shipping_tracking_code,
             "shipping_label_url": self.shipping_label_url,
             "shipping_status": self.shipping_status,
             "internal_notes": self.internal_notes,
+            "customer_address_data": self.customer_address_data,
             "created_at": self.created_at,
         }
