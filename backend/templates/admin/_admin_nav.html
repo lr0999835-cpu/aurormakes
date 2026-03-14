@@ -5,8 +5,8 @@
   ('Clientes', 'orders:read', url_for('admin.admin_orders'), '◌'),
   ('Marketing', 'integrations:read', url_for('admin.admin_integrations'), '◍'),
   ('Relatórios', 'dashboard:read', url_for('admin.admin_dashboard'), '◔'),
-  ('Inventário', 'stock:read', url_for('admin.admin_stock'), '◬'),
   ('Financeiro', 'dashboard:read', url_for('admin.admin_dashboard'), '◒'),
+  ('Estoque', 'stock:read', url_for('admin.admin_stock'), '◬'),
   ('Canais', 'channels:read', url_for('admin.admin_channels'), '◐'),
   ('Integrações', 'integrations:read', url_for('admin.admin_integrations'), '◎'),
   ('Empresas', 'users:read', url_for('admin.admin_companies'), '◈') if g.current_user.role == 'super_admin' else none,
@@ -27,13 +27,13 @@
   <a href="{{ url_for('admin.admin_dashboard') }}" class="admin-brand" aria-label="Aurora Makes dashboard">
     <span class="admin-brand-eyebrow">Aurora Makes</span>
     <span class="admin-brand-title">{{ g.current_user.company_name }}</span>
-    <span class="admin-brand-subtitle">Enterprise command center</span>
+    <span class="admin-brand-subtitle">Plataforma ERP + BI</span>
   </a>
 
   <div class="admin-sidebar-kpi">
-    <p>Health score</p>
-    <strong>97.4</strong>
-    <span>↑ +2.1 this week</span>
+    <p>Saúde operacional</p>
+    <strong>97,4</strong>
+    <span>↑ +2,1 na semana</span>
   </div>
 
   <nav class="admin-side-nav" aria-label="Navegação principal">
@@ -49,19 +49,22 @@
 
 <header class="admin-topbar">
   <div class="admin-topbar-left">
-    <h2>Executive Dashboard</h2>
-    <p>{{ g.current_user.role }} · {{ g.current_user.company_slug }} · Updated now</p>
+    <h2>Painel Executivo</h2>
+    <p>{{ g.current_user.role }} · {{ g.current_user.company_slug }} · Fuso {{ tz_name }}</p>
   </div>
 
   <form class="admin-topbar-search" role="search">
-    <input type="search" placeholder="Buscar pedidos, produtos, clientes..." aria-label="Busca global">
+    <input type="search" placeholder="Busca global: pedidos, produtos, clientes" aria-label="Busca global">
     <button type="submit" aria-label="Pesquisar">⌕</button>
   </form>
 
   <div class="admin-topbar-actions">
-    <button type="button" class="topbar-icon" aria-label="Atalhos de data">⏱</button>
+    <select aria-label="Seletor de empresa" class="topbar-icon" style="min-width:130px;">
+      <option>{{ g.current_user.company_name }}</option>
+    </select>
+    <button type="button" class="topbar-icon" aria-label="Atalhos rápidos">⚡</button>
     <button type="button" class="topbar-icon" aria-label="Notificações">✦</button>
-    <button type="button" class="topbar-icon" aria-label="Atualizar dashboard">⟳</button>
+    <button type="button" class="topbar-icon" aria-label="Atualizar painel">⟳</button>
     <form class="admin-logout" method="post" action="{{ url_for('admin.admin_logout') }}">
       <span class="admin-user-pill">{{ g.current_user.role }}</span>
       <button type="submit" class="btn btn-outline">Sair</button>
