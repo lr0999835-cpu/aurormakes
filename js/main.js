@@ -1,5 +1,6 @@
 const CART_STORAGE_KEY = "aurora_makes_cart";
-const WHATSAPP_NUMBER = "5521974803694";
+const WHATSAPP_NUMBER = "21974803694";
+const WHATSAPP_URL = `https://wa.me/55${WHATSAPP_NUMBER}`;
 
 function formatPrice(value) {
   return value.toLocaleString("pt-BR", {
@@ -118,39 +119,64 @@ function addToCart(productId) {
   }
 }
 
-function renderProductCard(product) {
-  return `
-    <article class="card" role="button" tabindex="0" onclick="addToCart(${product.id})" onkeypress="if(event.key === 'Enter'){ addToCart(${product.id}); }">
-      <img src="${product.imagem}" alt="${product.nome}">
-      <h3>${product.nome}</h3>
-      <p class="price">${formatPrice(product.preco)}</p>
-      <button type="button" onclick="event.stopPropagation(); addToCart(${product.id})">Adicionar ao carrinho</button>
-    </article>
+function createProductCardElement(product) {
+  const card = document.createElement("article");
+  card.className = "card";
+  card.setAttribute("role", "button");
+  card.setAttribute("tabindex", "0");
+
+  card.innerHTML = `
+    <img src="${product.imagem}" alt="${product.nome}">
+    <h3>${product.nome}</h3>
+    <p class="price">${formatPrice(product.preco)}</p>
+    <button type="button">Adicionar ao carrinho</button>
   `;
+
+  const addButton = card.querySelector("button");
+
+  card.addEventListener("click", () => {
+    addToCart(product.id);
+  });
+
+  card.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      addToCart(product.id);
+    }
+  });
+
+  addButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    addToCart(product.id);
+  });
+
+  return card;
+}
+
+function renderProducts(targetId, products) {
+  const container = document.getElementById(targetId);
+
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = "";
+  products.forEach((product) => {
+    container.appendChild(createProductCardElement(product));
+  });
 }
 
 function renderHomeProducts() {
-  const homeContainer = document.getElementById("home-products");
-
-  if (!homeContainer) {
-    return;
-  }
-
   const destaques = CATALOGO_PRODUTOS.slice(0, 3);
-  homeContainer.innerHTML = destaques.map(renderProductCard).join("");
+  renderProducts("home-products", destaques);
 }
 
 function renderProductsPage() {
-  const productsContainer = document.getElementById("lista-produtos");
-
-  if (!productsContainer) {
-    return;
-  }
-
-  productsContainer.innerHTML = CATALOGO_PRODUTOS.map(renderProductCard).join("");
+  renderProducts("lista-produtos", CATALOGO_PRODUTOS);
 }
 
 window.addToCart = addToCart;
+window.WHATSAPP_URL = WHATSAPP_URL;
 
 document.addEventListener("DOMContentLoaded", () => {
   updateCartCount();
