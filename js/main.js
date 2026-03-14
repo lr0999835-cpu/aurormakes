@@ -154,7 +154,7 @@ function createProductCardElement(product) {
   card.setAttribute("tabindex", "0");
 
   const installmentPrice = product.preco / 6;
-  const stockWarning = product.estoque <= 5 ? `<p class="stock-warning">Apenas ${Math.max(product.estoque, 0)} em estoque</p>` : "";
+  const stockWarning = product.estoque <= 5 ? `<p class="stock-warning">Atenção, última peça!</p>` : "";
 
   card.innerHTML = `
     <img src="${product.imagem}" alt="${product.nome}" class="card-image" loading="lazy">
