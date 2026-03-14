@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Carrinho | Aurora Makes</title>
+  <title>Carrinho e Checkout | Aurora Makes</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header class="topo">
-    <div class="container nav-wrapper">
+  <header class="topo topo-premium">
+    <div class="container nav-wrapper nav-wrapper-premium">
       <a href="index.html" class="logo">Aurora <span>Makes</span></a>
-      <nav class="menu">
+      <nav class="menu menu-premium" aria-label="Navegação principal">
         <a href="index.html">Início</a>
         <a href="produtos.html">Produtos</a>
         <a href="carrinho.html" class="active cart-link">Carrinho <span id="cart-count" class="cart-count">0</span></a>
@@ -18,16 +18,13 @@
     </div>
   </header>
 
-  <main class="container section">
-    <h1 class="section-title">Seu carrinho</h1>
+  <main class="container section checkout-page">
+    <div class="checkout-header">
+      <h1 class="section-title">Seu carrinho e checkout</h1>
+      <p class="section-subtitle">Finalização segura, rápida e com entrega para todo o Brasil.</p>
+    </div>
     <div id="cart-content"></div>
   </main>
-
-  <footer class="rodape">
-    <div class="container">
-      <p>© 2026 Aurora Makes - Loja online de maquiagem.</p>
-    </div>
-  </footer>
 
   <script src="js/produtos.js"></script>
   <script src="js/main.js"></script>
