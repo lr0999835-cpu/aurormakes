@@ -4,8 +4,11 @@ from database import get_connection
 from models import Order, Product
 
 
-REQUIRED_FIELDS = ["name", "category", "price", "cost", "stock"]
+REQUIRED_FIELDS = ["name", "category", "price", "cost", "stock", "sku"]
 ORDER_STATUSES = ["pending", "paid", "preparing", "ready_to_ship", "shipped", "delivered", "cancelled"]
+ORDER_SOURCES = ["aurora_makes", "shopee", "marketplace", "manual"]
+PAYMENT_STATUSES = ["pending", "paid", "refunded", "failed"]
+SHIPPING_STATUSES = ["pending", "ready_to_ship", "shipped", "delivered", "returned"]
 LOW_STOCK_LIMIT = 3
 
 
@@ -18,6 +21,9 @@ def _normalize_payload(payload):
         "cost": float(payload.get("cost", 0) or 0),
         "stock": int(payload.get("stock", 0) or 0),
         "image_url": (payload.get("image_url") or "").strip(),
+        "sku": (payload.get("sku") or "").strip(),
+        "barcode": (payload.get("barcode") or "").strip(),
+        "supplier_reference": (payload.get("supplier_reference") or "").strip(),
         "is_active": 1 if payload.get("is_active", True) else 0,
     }
 
@@ -68,8 +74,32 @@ def create_product(payload):
     with get_connection() as conn:
         cursor = conn.execute(
             """
-            INSERT INTO products (name, category, description, price, cost, stock, image_url, is_active)
-            VALUES (:name, :category, :description, :price, :cost, :stock, :image_url, :is_active)
+            INSERT INTO products (
+                name,
+                category,
+                description,
+                price,
+                cost,
+                stock,
+                image_url,
+                sku,
+                barcode,
+                supplier_reference,
+                is_active
+            )
+            VALUES (
+                :name,
+                :category,
+                :description,
+                :price,
+                :cost,
+                :stock,
+                :image_url,
+                :sku,
+                :barcode,
+                :supplier_reference,
+                :is_active
+            )
             """,
             data,
         )
@@ -97,6 +127,9 @@ def update_product(product_id, payload):
                 cost = :cost,
                 stock = :stock,
                 image_url = :image_url,
+                sku = :sku,
+                barcode = :barcode,
+                supplier_reference = :supplier_reference,
                 is_active = :is_active
             WHERE id = :id
             """,
@@ -126,17 +159,47 @@ def set_product_active(product_id, is_active):
     return cursor.rowcount > 0
 
 
-def create_stock_movement(conn, product_id, movement_type, quantity, notes=""):
+def create_stock_movement(conn, product_id, movement_type, quantity, notes="", source="manual", reference_id=""):
     conn.execute(
         """
-        INSERT INTO stock_movements (product_id, movement_type, quantity, notes)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO stock_movements (product_id, movement_type, quantity, source, reference_id, notes)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
-        (int(product_id), movement_type, int(quantity), notes),
+        (int(product_id), movement_type, int(quantity), source, str(reference_id), notes),
     )
 
 
-def update_product_stock(product_id, stock, notes="Ajuste manual de estoque"):
+def list_stock_movements(limit=200):
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT sm.*, p.name as product_name, p.sku as product_sku
+            FROM stock_movements sm
+            JOIN products p ON p.id = sm.product_id
+            ORDER BY sm.created_at DESC, sm.id DESC
+            LIMIT ?
+            """,
+            (int(limit),),
+        ).fetchall()
+
+    return [
+        {
+            "id": int(row["id"]),
+            "product_id": int(row["product_id"]),
+            "product_name": row["product_name"],
+            "product_sku": row["product_sku"],
+            "movement_type": row["movement_type"],
+            "quantity": int(row["quantity"]),
+            "source": row["source"] or "manual",
+            "reference_id": row["reference_id"] or "",
+            "notes": row["notes"] or "",
+            "created_at": row["created_at"],
+        }
+        for row in rows
+    ]
+
+
+def update_product_stock(product_id, stock, notes="Ajuste manual de estoque", source="manual", reference_id=""):
     stock_value = int(stock)
     if stock_value < 0:
         raise ValueError("Estoque deve ser maior ou igual a 0")
@@ -156,7 +219,7 @@ def update_product_stock(product_id, stock, notes="Ajuste manual de estoque"):
 
         if delta != 0:
             movement = "manual_in" if delta > 0 else "manual_out"
-            create_stock_movement(conn, product_id, movement, abs(delta), notes)
+            create_stock_movement(conn, product_id, movement, abs(delta), notes, source=source, reference_id=reference_id)
 
         conn.commit()
 
@@ -165,11 +228,32 @@ def update_product_stock(product_id, stock, notes="Ajuste manual de estoque"):
 
 def _normalize_order_payload(payload):
     items = payload.get("items") or []
+    source = (payload.get("source") or "aurora_makes").strip().lower()
+    if source not in ORDER_SOURCES:
+        source = "marketplace"
+
+    payment_status = (payload.get("payment_status") or "pending").strip().lower()
+    if payment_status not in PAYMENT_STATUSES:
+        payment_status = "pending"
+
+    shipping_status = (payload.get("shipping_status") or "pending").strip().lower()
+    if shipping_status not in SHIPPING_STATUSES:
+        shipping_status = "pending"
+
     return {
         "customer_name": (payload.get("customer_name") or "").strip(),
         "customer_phone": (payload.get("customer_phone") or "").strip(),
         "customer_address": (payload.get("customer_address") or "").strip(),
         "items": items,
+        "source": source,
+        "external_order_id": (payload.get("external_order_id") or "").strip(),
+        "payment_status": payment_status,
+        "payment_method": (payload.get("payment_method") or "").strip(),
+        "shipping_method": (payload.get("shipping_method") or "").strip(),
+        "shipping_tracking_code": (payload.get("shipping_tracking_code") or "").strip(),
+        "shipping_label_url": (payload.get("shipping_label_url") or "").strip(),
+        "shipping_status": shipping_status,
+        "internal_notes": (payload.get("internal_notes") or "").strip(),
     }
 
 
@@ -210,19 +294,51 @@ def create_order(payload):
 
             price = float(product["price"])
             total += price * quantity
-            normalized_items.append({
-                "product_id": product_id,
-                "name": product["name"],
-                "quantity": quantity,
-                "price": price,
-            })
+            normalized_items.append(
+                {
+                    "product_id": product_id,
+                    "name": product["name"],
+                    "quantity": quantity,
+                    "price": price,
+                }
+            )
 
         order_cursor = conn.execute(
             """
-            INSERT INTO orders (customer_name, customer_phone, customer_address, total, status)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO orders (
+                customer_name,
+                customer_phone,
+                customer_address,
+                total,
+                status,
+                source,
+                external_order_id,
+                payment_status,
+                payment_method,
+                shipping_method,
+                shipping_tracking_code,
+                shipping_label_url,
+                shipping_status,
+                internal_notes
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (data["customer_name"], data["customer_phone"], data["customer_address"], total, "pending"),
+            (
+                data["customer_name"],
+                data["customer_phone"],
+                data["customer_address"],
+                total,
+                "pending",
+                data["source"],
+                data["external_order_id"],
+                data["payment_status"],
+                data["payment_method"],
+                data["shipping_method"],
+                data["shipping_tracking_code"],
+                data["shipping_label_url"],
+                data["shipping_status"],
+                data["internal_notes"],
+            ),
         )
         order_id = order_cursor.lastrowid
 
@@ -244,6 +360,8 @@ def create_order(payload):
                 "order_out",
                 item["quantity"],
                 f"Baixa automática do pedido #{order_id}",
+                source=data["source"],
+                reference_id=order_id,
             )
 
         conn.commit()
@@ -251,15 +369,31 @@ def create_order(payload):
     return get_order(order_id)
 
 
-def list_orders(limit=None):
-    query = "SELECT * FROM orders ORDER BY created_at DESC, id DESC"
-    params = ()
+def list_orders(limit=None, source=None, status=None, payment_status=None, shipping_status=None):
+    query = "SELECT * FROM orders WHERE 1=1"
+    params = []
+
+    if source:
+        query += " AND source = ?"
+        params.append(source)
+    if status:
+        query += " AND status = ?"
+        params.append(status)
+    if payment_status:
+        query += " AND payment_status = ?"
+        params.append(payment_status)
+    if shipping_status:
+        query += " AND shipping_status = ?"
+        params.append(shipping_status)
+
+    query += " ORDER BY created_at DESC, id DESC"
+
     if limit:
         query += " LIMIT ?"
-        params = (int(limit),)
+        params.append(int(limit))
 
     with get_connection() as conn:
-        rows = conn.execute(query, params).fetchall()
+        rows = conn.execute(query, tuple(params)).fetchall()
 
     return [Order.from_row(row) for row in rows]
 
@@ -272,7 +406,7 @@ def get_order(order_id):
 
         item_rows = conn.execute(
             """
-            SELECT oi.*, p.name as product_name
+            SELECT oi.*, p.name as product_name, p.sku as product_sku
             FROM order_items oi
             JOIN products p ON p.id = oi.product_id
             WHERE oi.order_id = ?
@@ -287,8 +421,10 @@ def get_order(order_id):
             "id": int(row["id"]),
             "product_id": int(row["product_id"]),
             "product_name": row["product_name"],
+            "product_sku": row["product_sku"],
             "quantity": int(row["quantity"]),
             "price": float(row["price"]),
+            "subtotal": float(row["price"]) * int(row["quantity"]),
         }
         for row in item_rows
     ]
@@ -327,6 +463,79 @@ def list_low_stock_products(limit=20):
     return [Product.from_row(row) for row in rows]
 
 
+def get_product_channel_mappings():
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT pc.*, p.name as product_name, p.sku as product_sku
+            FROM product_channels pc
+            JOIN products p ON p.id = pc.product_id
+            ORDER BY pc.created_at DESC, pc.id DESC
+            """
+        ).fetchall()
+
+    return [
+        {
+            "id": int(row["id"]),
+            "product_id": int(row["product_id"]),
+            "product_name": row["product_name"],
+            "product_sku": row["product_sku"],
+            "channel_name": row["channel_name"],
+            "external_product_id": row["external_product_id"],
+            "external_sku": row["external_sku"] or "",
+            "is_active": bool(row["is_active"]),
+            "created_at": row["created_at"],
+        }
+        for row in rows
+    ]
+
+
+def save_product_channel_mapping(product_id, channel_name, external_product_id, external_sku="", is_active=True):
+    channel = (channel_name or "").strip().lower()
+    external_id = (external_product_id or "").strip()
+    if not channel or not external_id:
+        raise ValueError("Canal e ID externo são obrigatórios")
+
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO product_channels (
+                id,
+                product_id,
+                channel_name,
+                external_product_id,
+                external_sku,
+                is_active,
+                created_at
+            )
+            VALUES (
+                (
+                    SELECT id FROM product_channels
+                    WHERE product_id = ? AND channel_name = ? AND external_product_id = ?
+                ),
+                ?, ?, ?, ?, ?, COALESCE((
+                    SELECT created_at FROM product_channels
+                    WHERE product_id = ? AND channel_name = ? AND external_product_id = ?
+                ), CURRENT_TIMESTAMP)
+            )
+            """,
+            (
+                int(product_id),
+                channel,
+                external_id,
+                int(product_id),
+                channel,
+                external_id,
+                (external_sku or "").strip(),
+                1 if is_active else 0,
+                int(product_id),
+                channel,
+                external_id,
+            ),
+        )
+        conn.commit()
+
+
 def get_dashboard_data():
     with get_connection() as conn:
         sales_today = conn.execute(
@@ -359,13 +568,26 @@ def get_dashboard_data():
         ready_orders = conn.execute("SELECT COUNT(*) as total FROM orders WHERE status = 'ready_to_ship'").fetchone()["total"]
         out_of_stock = conn.execute("SELECT COUNT(*) as total FROM products WHERE is_active = 1 AND stock = 0").fetchone()["total"]
 
+        source_rows = conn.execute(
+            """
+            SELECT source, COUNT(*) as orders_count, COALESCE(SUM(total), 0) as revenue
+            FROM orders
+            GROUP BY source
+            ORDER BY orders_count DESC
+            """
+        ).fetchall()
+
         recent = conn.execute("SELECT * FROM orders ORDER BY created_at DESC, id DESC LIMIT 5").fetchall()
 
     total_revenue = float(sales_total["revenue"])
     total_cost = float(cost_row["total_cost"])
 
+    orders_by_source = {row["source"]: int(row["orders_count"]) for row in source_rows}
+    revenue_by_source = {row["source"]: float(row["revenue"]) for row in source_rows}
+
     return {
         "sales_today": int(sales_today["count"]),
+        "sales_today_revenue": float(sales_today["revenue"]),
         "sales_total_count": int(sales_total["count"]),
         "total_revenue": total_revenue,
         "estimated_profit": total_revenue - total_cost,
@@ -375,6 +597,12 @@ def get_dashboard_data():
         "out_of_stock_products": int(out_of_stock),
         "pending_orders": int(pending_orders),
         "ready_to_ship_orders": int(ready_orders),
+        "orders_by_source": orders_by_source,
+        "revenue_by_source": revenue_by_source,
+        "sales_by_source": [
+            {"source": row["source"], "orders": int(row["orders_count"]), "revenue": float(row["revenue"])}
+            for row in source_rows
+        ],
         "recent_orders": [Order.from_row(row).to_dict() for row in recent],
     }
 

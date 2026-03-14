@@ -23,32 +23,49 @@
         <a href="/admin/orders">Pedidos</a>
         <a href="/admin/stock">Estoque</a>
         <a href="/admin/products">Produtos</a>
+        <a href="/admin/channels">Canais</a>
       </nav>
     </div>
   </header>
 
   <main class="container section">
-    <h1 class="section-title">Dashboard Operacional</h1>
+    <h1 class="section-title">Dashboard Operacional Multicanal</h1>
     <section class="metrics">
       <article class="card"><h3>Vendas do dia</h3><p>{{ metrics.sales_today }}</p></article>
+      <article class="card"><h3>Receita de hoje</h3><p>R$ {{ '%.2f'|format(metrics.sales_today_revenue) }}</p></article>
       <article class="card"><h3>Total de vendas</h3><p>{{ metrics.sales_total_count }}</p></article>
       <article class="card"><h3>Receita total</h3><p>R$ {{ '%.2f'|format(metrics.total_revenue) }}</p></article>
       <article class="card"><h3>Lucro estimado</h3><p>R$ {{ '%.2f'|format(metrics.estimated_profit) }}</p></article>
-      <article class="card"><h3>Produtos vendidos</h3><p>{{ metrics.products_sold }}</p></article>
+      <article class="card"><h3>Itens vendidos</h3><p>{{ metrics.products_sold }}</p></article>
       <article class="card"><h3>Pedidos pendentes</h3><p>{{ metrics.pending_orders }}</p></article>
       <article class="card"><h3>Prontos para envio</h3><p>{{ metrics.ready_to_ship_orders }}</p></article>
       <article class="card"><h3>Produtos sem estoque</h3><p>{{ metrics.out_of_stock_products }}</p></article>
+      <article class="card"><h3>Produtos com estoque baixo</h3><p>{{ metrics.low_stock_products|length }}</p></article>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Vendas por origem</h2>
+      <table>
+        <thead><tr><th>Origem</th><th>Pedidos</th><th>Receita</th></tr></thead>
+        <tbody>
+          {% for item in metrics.sales_by_source %}
+            <tr><td>{{ item.source }}</td><td>{{ item.orders }}</td><td>R$ {{ '%.2f'|format(item.revenue) }}</td></tr>
+          {% else %}
+            <tr><td colspan="3">Ainda não existem dados por origem.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </section>
 
     <section class="section">
       <h2 class="section-title">Pedidos recentes</h2>
       <table>
-        <thead><tr><th>ID</th><th>Cliente</th><th>Status</th><th>Total</th></tr></thead>
+        <thead><tr><th>ID</th><th>Origem</th><th>Cliente</th><th>Status</th><th>Total</th></tr></thead>
         <tbody>
           {% for order in metrics.recent_orders %}
-            <tr><td>#{{ order.id }}</td><td>{{ order.customer_name }}</td><td>{{ order.status }}</td><td>R$ {{ '%.2f'|format(order.total) }}</td></tr>
+            <tr><td>#{{ order.id }}</td><td>{{ order.source }}</td><td>{{ order.customer_name }}</td><td>{{ order.status }}</td><td>R$ {{ '%.2f'|format(order.total) }}</td></tr>
           {% else %}
-            <tr><td colspan="4">Nenhum pedido ainda.</td></tr>
+            <tr><td colspan="5">Nenhum pedido ainda.</td></tr>
           {% endfor %}
         </tbody>
       </table>

@@ -11,6 +11,8 @@
     .stock-item { display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
     .stock-item form { display: flex; gap: 8px; }
     .stock-item input { width: 100px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid var(--border); padding: 8px; text-align: left; }
   </style>
 </head>
 <body>
@@ -22,30 +24,31 @@
         <a href="/admin/orders">Pedidos</a>
         <a href="/admin/stock" class="active">Estoque</a>
         <a href="/admin/products">Produtos</a>
+        <a href="/admin/channels">Canais</a>
       </nav>
     </div>
   </header>
 
   <main class="container section">
-    <h1 class="section-title">Atualização de Estoque</h1>
+    <h1 class="section-title">Atualização de Estoque (Central)</h1>
 
     <section class="admin-card" style="margin-bottom: 16px;">
       <h2>Alertas de estoque baixo</h2>
       <ul>
         {% for item in low_stock %}
-          <li>{{ item.name }} — estoque atual: {{ item.stock }}</li>
+          <li>{{ item.name }} (SKU {{ item.sku or '-' }}) — estoque atual: {{ item.stock }}</li>
         {% else %}
           <li>Sem alertas no momento.</li>
         {% endfor %}
       </ul>
     </section>
 
-    <section class="admin-card stock-grid">
+    <section class="admin-card stock-grid" style="margin-bottom:16px;">
       {% for product in products %}
         <div class="stock-item">
           <div>
             <strong>{{ product.name }}</strong><br>
-            <small>{{ product.category }} | {{ 'Ativo' if product.is_active else 'Inativo' }}</small>
+            <small>SKU: {{ product.sku or '-' }} | {{ product.category }} | {{ 'Ativo' if product.is_active else 'Inativo' }}</small>
           </div>
           <span>Atual: {{ product.stock }}</span>
           <form method="post" action="{{ url_for('admin.admin_update_stock', product_id=product.id) }}">
@@ -57,6 +60,30 @@
       {% else %}
         <p>Nenhum produto cadastrado.</p>
       {% endfor %}
+    </section>
+
+    <section class="admin-card">
+      <h2>Histórico de movimentações</h2>
+      <table>
+        <thead>
+          <tr><th>Data</th><th>Produto</th><th>Tipo</th><th>Qtd</th><th>Origem</th><th>Referência</th><th>Notas</th></tr>
+        </thead>
+        <tbody>
+          {% for item in movements %}
+            <tr>
+              <td>{{ item.created_at }}</td>
+              <td>{{ item.product_name }} ({{ item.product_sku or '-' }})</td>
+              <td>{{ item.movement_type }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.source }}</td>
+              <td>{{ item.reference_id or '-' }}</td>
+              <td>{{ item.notes or '-' }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7">Sem movimentações registradas.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </section>
   </main>
 </body>

@@ -6,10 +6,12 @@
   <title>Admin | Pedidos</title>
   <link rel="stylesheet" href="/css/style.css">
   <style>
-    .layout { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; }
+    .layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; }
     .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+    .filters { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); margin-bottom: 12px; }
     table { width: 100%; border-collapse: collapse; }
     th, td { border-bottom: 1px solid var(--border); padding: 8px; text-align: left; }
+    .muted { color: #6b7280; font-size: .92rem; }
     @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -22,26 +24,59 @@
         <a href="/admin/orders" class="active">Pedidos</a>
         <a href="/admin/stock">Estoque</a>
         <a href="/admin/products">Produtos</a>
+        <a href="/admin/channels">Canais</a>
       </nav>
     </div>
   </header>
   <main class="container section">
     <h1 class="section-title">Gestão de Pedidos</h1>
+
+    <section class="card" style="margin-bottom: 16px;">
+      <form method="get" class="filters">
+        <select name="source">
+          <option value="">Todas as origens</option>
+          {% for source in order_sources %}
+            <option value="{{ source }}" {% if filters.source == source %}selected{% endif %}>{{ source }}</option>
+          {% endfor %}
+        </select>
+        <select name="status">
+          <option value="">Todos os status</option>
+          {% for status in statuses %}
+            <option value="{{ status }}" {% if filters.status == status %}selected{% endif %}>{{ status }}</option>
+          {% endfor %}
+        </select>
+        <select name="payment_status">
+          <option value="">Pagamento (todos)</option>
+          {% for value in payment_statuses %}
+            <option value="{{ value }}" {% if filters.payment_status == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+        <select name="shipping_status">
+          <option value="">Envio (todos)</option>
+          {% for value in shipping_statuses %}
+            <option value="{{ value }}" {% if filters.shipping_status == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn" type="submit">Filtrar</button>
+      </form>
+    </section>
+
     <div class="layout">
       <section class="card">
         <table>
-          <thead><tr><th>ID</th><th>Cliente</th><th>Status</th><th>Total</th><th></th></tr></thead>
+          <thead><tr><th>ID</th><th>Origem</th><th>Cliente</th><th>Status</th><th>Total</th><th></th></tr></thead>
           <tbody>
             {% for order in orders %}
               <tr>
                 <td>#{{ order.id }}</td>
+                <td>{{ order.source }}</td>
                 <td>{{ order.customer_name }}</td>
                 <td>{{ order.status }}</td>
                 <td>R$ {{ '%.2f'|format(order.total) }}</td>
-                <td><a class="btn" href="{{ url_for('admin.admin_orders', id=order.id) }}">Detalhes</a></td>
+                <td><a class="btn" href="{{ url_for('admin.admin_orders', id=order.id, source=filters.source, status=filters.status, payment_status=filters.payment_status, shipping_status=filters.shipping_status) }}">Detalhes</a></td>
               </tr>
             {% else %}
-              <tr><td colspan="5">Nenhum pedido cadastrado.</td></tr>
+              <tr><td colspan="6">Nenhum pedido cadastrado.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -49,16 +84,26 @@
       <section class="card">
         {% if selected_order %}
           <h2>Pedido #{{ selected_order.id }}</h2>
+          <p><strong>Origem:</strong> {{ selected_order.source }}</p>
+          <p><strong>ID externo:</strong> {{ selected_order.external_order_id or '-' }}</p>
           <p><strong>Cliente:</strong> {{ selected_order.customer_name }}</p>
           <p><strong>Telefone:</strong> {{ selected_order.customer_phone }}</p>
           <p><strong>Endereço:</strong> {{ selected_order.customer_address }}</p>
+          <p><strong>Pagamento:</strong> {{ selected_order.payment_status }} | {{ selected_order.payment_method or '-' }}</p>
+          <p><strong>Envio:</strong> {{ selected_order.shipping_status }} | {{ selected_order.shipping_method or '-' }}</p>
+          <p><strong>Rastreio:</strong> {{ selected_order.shipping_tracking_code or '-' }}</p>
+          <p><strong>Notas internas:</strong> {{ selected_order.internal_notes or '-' }}</p>
           <p><strong>Total:</strong> R$ {{ '%.2f'|format(selected_order.total) }}</p>
           <h3>Itens</h3>
           <ul>
             {% for item in selected_order.items %}
-              <li>{{ item.product_name }} — {{ item.quantity }} x R$ {{ '%.2f'|format(item.price) }}</li>
+              <li>{{ item.product_name }} ({{ item.product_sku or 'sem SKU' }}) — {{ item.quantity }} x R$ {{ '%.2f'|format(item.price) }} = R$ {{ '%.2f'|format(item.subtotal) }}</li>
             {% endfor %}
           </ul>
+          <p class="muted">Label de envio: {{ selected_order.shipping_label_url or '-' }}</p>
+          <p>
+            <a class="btn" href="{{ url_for('admin.admin_order_print', order_id=selected_order.id) }}" target="_blank">Imprimir ficha operacional</a>
+          </p>
           <form method="post" action="{{ url_for('admin.admin_change_order_status', order_id=selected_order.id) }}">
             <label>Novo status</label>
             <select name="status">
