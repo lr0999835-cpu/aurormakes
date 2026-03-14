@@ -325,9 +325,10 @@
         <div class="filter-tags">
           <span class="filter-tag">Período: {{ dashboard.period_label }}</span>
           <span class="filter-tag">Empresa: {{ g.current_user.company_name }}</span>
-          <span class="filter-tag">Status: Todos</span>
-          <span class="filter-tag">Canal: Todos</span>
-          <span class="filter-tag">Dispositivo: Todos</span>
+          <span class="filter-tag">Status: {{ dashboard.filters_applied.status or "Todos" }}</span>
+          <span class="filter-tag">Canal: {{ dashboard.filters_applied.source or "Todos" }}</span>
+          <span class="filter-tag">Pagamento: {{ dashboard.filters_applied.payment_status or "Todos" }}</span>
+          <span class="filter-tag">Entrega: {{ dashboard.filters_applied.shipping_status or "Todos" }}</span>
         </div>
         <div class="comparison-chips">
           <span class="comparison-chip">vs período anterior</span>
@@ -469,10 +470,10 @@
           <span class="pill">Brasil + Global</span>
         </div>
         <div class="state-list">
-          {% for item in dashboard.source_summary %}
+          {% for item in dashboard.geo_summary %}
             {% set percent = (item.orders / ((dashboard.source_summary | map(attribute='orders') | max) or 1)) * 100 %}
             <div class="state-item">
-              <strong>{{ item.source|upper }}</strong>
+              <strong>{{ item.region|upper }}</strong>
               <div class="state-track"><div class="state-fill" style="width: {{ percent }}%"></div></div>
               <span>R$ {{ '%.2f'|format(item.revenue) }}</span>
             </div>
@@ -480,7 +481,7 @@
             <div class="empty-state">Ainda não há distribuição geográfica por vendas.</div>
           {% endfor %}
         </div>
-        <div class="map-placeholder">Mapa estratégico (heat zones): áreas com maior demanda e potencial de expansão logística.</div>
+        <div class="map-placeholder">Agregação geográfica baseada no endereço de entrega dos pedidos filtrados.</div>
       </article>
     {% endif %}
 
@@ -495,10 +496,10 @@
           <span class="status-badge status-ok">Growth</span>
         </div>
         <div class="split-grid">
-          <div class="metric-card"><div class="metric-title"><span>Novos clientes</span></div><div class="metric-value">{{ dashboard.kpis[7].value }}</div></div>
-          <div class="metric-card"><div class="metric-title"><span>Clientes recorrentes</span></div><div class="metric-value">{{ (dashboard.kpis[3].value * 0.41)|round|int }}</div></div>
+          <div class="metric-card"><div class="metric-title"><span>Novos clientes</span></div><div class="metric-value">{{ dashboard.customer_stats.new_customers }}</div></div>
+          <div class="metric-card"><div class="metric-title"><span>Clientes recorrentes</span></div><div class="metric-value">{{ dashboard.customer_stats.repeat_customers }}</div></div>
           <div class="metric-card"><div class="metric-title"><span>Ticket médio cliente</span></div><div class="metric-value">R$ {{ '%.2f'|format(dashboard.kpis[4].value) }}</div></div>
-          <div class="metric-card"><div class="metric-title"><span>Frequência de compra</span></div><div class="metric-value">{{ '%.1f'|format((dashboard.kpis[3].value / ((dashboard.kpis[7].value or 1))) ) }}x</div></div>
+          <div class="metric-card"><div class="metric-title"><span>Frequência de compra</span></div><div class="metric-value">{{ '%.1f'|format(dashboard.customer_stats.purchase_frequency) }}x</div></div>
         </div>
       </article>
     {% endif %}

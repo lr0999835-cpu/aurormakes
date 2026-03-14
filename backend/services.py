@@ -651,7 +651,7 @@ def get_product_channel_mappings(company_id):
             WHERE pc.company_id = ?
             ORDER BY pc.created_at DESC, pc.id DESC
             """,
-            (int(company_id),),
+            (int(company_id), int(company_id)),
         ).fetchall()
 
     return [
@@ -723,10 +723,11 @@ def save_product_channel_mapping(company_id, product_id, channel_name, external_
 def get_dashboard_data(company_id):
     with get_connection() as conn:
         sales_today = conn.execute(
-            "SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as revenue FROM orders WHERE company_id = ? AND DATE(created_at) = DATE('now')"
-        , (int(company_id),)).fetchone()
+            "SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as revenue FROM orders WHERE company_id = ? AND payment_status = 'paid' AND status != 'cancelled' AND DATE(created_at) = DATE('now')",
+            (int(company_id),),
+        ).fetchone()
         sales_total = conn.execute(
-            "SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as revenue FROM orders WHERE company_id = ?",
+            "SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as revenue FROM orders WHERE company_id = ? AND payment_status = 'paid' AND status != 'cancelled'",
             (int(company_id),),
         ).fetchone()
         cost_row = conn.execute(
@@ -735,10 +736,17 @@ def get_dashboard_data(company_id):
             FROM order_items oi
             JOIN products p ON p.id = oi.product_id
             WHERE oi.company_id = ?
+              AND oi.order_id IN (
+                SELECT id FROM orders
+                WHERE company_id = ? AND payment_status = 'paid' AND status != 'cancelled'
+              )
             """,
-            (int(company_id),),
+            (int(company_id), int(company_id)),
         ).fetchone()
-        products_sold_row = conn.execute("SELECT COALESCE(SUM(quantity), 0) as qty FROM order_items WHERE company_id = ?", (int(company_id),)).fetchone()
+        products_sold_row = conn.execute(
+            "SELECT COALESCE(SUM(quantity), 0) as qty FROM order_items WHERE company_id = ? AND order_id IN (SELECT id FROM orders WHERE company_id = ? AND payment_status = 'paid' AND status != 'cancelled')",
+            (int(company_id), int(company_id)),
+        ).fetchone()
 
         best_sellers_rows = conn.execute(
             """
@@ -746,11 +754,12 @@ def get_dashboard_data(company_id):
             FROM order_items oi
             JOIN products p ON p.id = oi.product_id
             WHERE oi.company_id = ?
+              AND oi.order_id IN (SELECT id FROM orders WHERE company_id = ? AND payment_status = 'paid' AND status != 'cancelled')
             GROUP BY oi.product_id
             ORDER BY sold DESC
             LIMIT 5
             """,
-            (int(company_id),),
+            (int(company_id), int(company_id)),
         ).fetchall()
 
         pending_orders = conn.execute("SELECT COUNT(*) as total FROM orders WHERE company_id = ? AND status = 'pending'", (int(company_id),)).fetchone()["total"]
@@ -761,7 +770,7 @@ def get_dashboard_data(company_id):
             """
             SELECT source, COUNT(*) as orders_count, COALESCE(SUM(total), 0) as revenue
             FROM orders
-            WHERE company_id = ?
+            WHERE company_id = ? AND payment_status = 'paid' AND status != 'cancelled'
             GROUP BY source
             ORDER BY orders_count DESC
             """,
