@@ -2,11 +2,40 @@ const CART_STORAGE_KEY = "aurora_makes_cart";
 const WHATSAPP_NUMBER = "21974803694";
 const WHATSAPP_URL = `https://wa.me/55${WHATSAPP_NUMBER}`;
 
+let catalogoProdutos = [];
+
 function formatPrice(value) {
   return value.toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL"
   });
+}
+
+function normalizeProduct(product) {
+  return {
+    id: Number(product.id),
+    nome: product.name || product.nome,
+    preco: Number(product.price ?? product.preco ?? 0),
+    imagem: product.image_url || product.imagem || "images/hero-makeup.svg",
+    estoque: Number(product.stock ?? 0),
+    ativo: product.is_active !== false
+  };
+}
+
+async function carregarProdutos() {
+  try {
+    const response = await fetch("/api/products");
+
+    if (!response.ok) {
+      throw new Error("Falha ao carregar API de produtos");
+    }
+
+    const data = await response.json();
+    catalogoProdutos = data.map(normalizeProduct).filter((produto) => produto.ativo);
+  } catch (error) {
+    console.warn("Usando produtos fallback:", error);
+    catalogoProdutos = (window.PRODUTOS_FALLBACK || []).map(normalizeProduct);
+  }
 }
 
 function getCart() {
@@ -39,7 +68,7 @@ function saveCart(cart) {
 }
 
 function findProductById(productId) {
-  return CATALOGO_PRODUTOS.find((produto) => produto.id === Number(productId));
+  return catalogoProdutos.find((produto) => produto.id === Number(productId));
 }
 
 function addProductToCart(productId) {
@@ -167,18 +196,20 @@ function renderProducts(targetId, products) {
 }
 
 function renderHomeProducts() {
-  const destaques = CATALOGO_PRODUTOS.slice(0, 3);
+  const destaques = catalogoProdutos.slice(0, 3);
   renderProducts("home-products", destaques);
 }
 
 function renderProductsPage() {
-  renderProducts("lista-produtos", CATALOGO_PRODUTOS);
+  renderProducts("lista-produtos", catalogoProdutos);
 }
 
 window.addToCart = addToCart;
 window.WHATSAPP_URL = WHATSAPP_URL;
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  await carregarProdutos();
+
   updateCartCount();
   renderHomeProducts();
   renderProductsPage();

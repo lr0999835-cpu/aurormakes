@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin | Estoque</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .admin-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+    .stock-grid { display: grid; gap: 10px; }
+    .stock-item { display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .stock-item form { display: flex; gap: 8px; }
+    .stock-item input { width: 100px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <header class="topo">
+    <div class="container nav-wrapper">
+      <a href="/" class="logo">Aurora <span>Makes</span></a>
+      <nav class="menu">
+        <a href="/admin/products">Produtos</a>
+        <a href="/admin/stock" class="active">Estoque</a>
+        <a href="/produtos.html">Loja</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container section">
+    <h1 class="section-title">Atualização de Estoque</h1>
+    <section class="admin-card stock-grid">
+      {% for product in products %}
+        <div class="stock-item">
+          <div>
+            <strong>{{ product.name }}</strong><br>
+            <small>{{ product.category }} | {{ 'Ativo' if product.is_active else 'Inativo' }}</small>
+          </div>
+          <span>Atual: {{ product.stock }}</span>
+          <form method="post" action="{{ url_for('admin.admin_update_stock', product_id=product.id) }}">
+            <input type="number" name="stock" min="0" value="{{ product.stock }}" required>
+            <button class="btn" type="submit">Salvar</button>
+          </form>
+        </div>
+      {% else %}
+        <p>Nenhum produto cadastrado.</p>
+      {% endfor %}
+    </section>
+  </main>
+</body>
+</html>
