@@ -1011,3 +1011,135 @@ a { text-decoration: none; color: inherit; }
 .admin-inline-form select {
   width: 100%;
 }
+
+/* Premium admin dashboard v2 */
+.admin-shell {
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.admin-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  border-right: 1px solid var(--border);
+  background: linear-gradient(180deg, #fff, #faf5f9);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.admin-side-nav {
+  display: grid;
+  gap: 6px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.admin-side-nav .admin-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 12px;
+}
+
+.admin-main-content {
+  min-width: 0;
+}
+
+.admin-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  min-height: 76px;
+  padding: 10px 20px;
+  background: color-mix(in srgb, var(--admin-bg) 82%, white 18%);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-topbar-left h2 {
+  font-family: "Poppins", sans-serif;
+  color: #5c4356;
+  font-size: 1.08rem;
+}
+
+.admin-topbar-left p {
+  margin: 2px 0 0;
+  font-size: .78rem;
+  color: #8b7485;
+}
+
+.admin-topbar-search {
+  flex: 1;
+  max-width: 520px;
+  background: #fff;
+  border: 1px solid #dfcfda;
+  border-radius: 12px;
+  display: flex;
+  overflow: hidden;
+}
+
+.admin-topbar-search input {
+  border: 0;
+  background: transparent;
+  width: 100%;
+  padding: 10px 12px;
+  outline: 0;
+}
+
+.admin-topbar-search button {
+  border: 0;
+  background: transparent;
+  border-left: 1px solid #efe1e8;
+  width: 44px;
+  cursor: pointer;
+}
+
+.admin-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid #decfda;
+  background: #fff;
+  cursor: pointer;
+}
+
+@media (max-width: 1080px) {
+  .admin-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-sidebar {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .admin-side-nav {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+
+  .admin-topbar {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .admin-topbar-search {
+    order: 3;
+    width: 100%;
+    max-width: unset;
+  }
+}
