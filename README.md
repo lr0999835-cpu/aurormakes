@@ -95,3 +95,43 @@ Esses serviços servem como base para:
 3. A baixa gera `stock_movements` com `source` e `reference_id`.
 4. O admin acompanha pedido, pagamento, envio e impressão operacional.
 5. Produtos podem ser vinculados às listagens externas em `/admin/channels`.
+
+
+## Gestão de acesso (multiempresa)
+### Funcionalidades
+- Gestão de empresas: criar, editar, ativar/desativar em `/admin/empresas` (somente `super_admin`).
+- Gestão de usuários: criar, editar, ativar/desativar, resetar senha e vincular à empresa em `/admin/usuarios`.
+- Gestão de papéis/permissões em `/admin/permissoes`.
+- Regras de isolamento por tenant aplicadas no backend:
+  - `super_admin` gerencia todas as empresas.
+  - `company_admin` gerencia usuários apenas da própria empresa.
+  - usuários de empresa não conseguem operar em outra empresa.
+- Senhas armazenadas com hash (`werkzeug.security.generate_password_hash`).
+
+### Roles suportadas
+- `super_admin`
+- `company_admin`
+- `operator`
+- `viewer`
+
+### Seed / bootstrap
+Na inicialização (`init_db`) o sistema cria automaticamente:
+- empresa padrão `Aurora Makes` (`slug=aurora-makes`)
+- usuário admin padrão para a empresa
+
+Você pode customizar via variáveis de ambiente antes de iniciar a aplicação:
+```bash
+export AURORA_ADMIN_EMAIL="super@empresa.com"
+export AURORA_ADMIN_USERNAME="superadmin"
+export AURORA_ADMIN_PASSWORD="Troque-essa-senha-123"
+python backend/app.py
+```
+
+### Como criar a primeira empresa e o primeiro admin
+1. Faça login com o admin padrão (empresa `aurora-makes` + credenciais definidas via env).
+2. Promova esse usuário para `super_admin` no banco (uma vez):
+```bash
+sqlite3 backend/aurora_makes.db "UPDATE users SET role='super_admin' WHERE username='superadmin';"
+```
+3. Acesse `/admin/empresas` e crie a empresa desejada.
+4. Acesse `/admin/usuarios?company_id=<id_da_empresa>` e crie o `company_admin` da nova empresa.

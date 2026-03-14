@@ -5,12 +5,16 @@
   ('Produtos', 'products:read', url_for('admin.admin_products')),
   ('Canais', 'channels:read', url_for('admin.admin_channels')),
   ('Integrações', 'integrations:read', url_for('admin.admin_integrations')),
+  ('Empresas', 'users:read', url_for('admin.admin_companies')) if g.current_user.role == 'super_admin' else none,
   ('Usuários', 'users:read', url_for('admin.admin_users')),
-] %}
+  ('Permissões', 'permissions:read', url_for('admin.admin_permissions')),] %}
 {% set allowed_items = [] %}
-{% for label, permission, href in nav_items %}
-  {% if g.can_access(permission) %}
+{% for item in nav_items %}
+  {% if item %}
+    {% set label, permission, href = item %}
+    {% if g.can_access(permission) %}
     {% set _ = allowed_items.append((label, href)) %}
+  {% endif %}
   {% endif %}
 {% endfor %}
 <header class="admin-header">

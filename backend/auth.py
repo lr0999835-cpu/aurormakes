@@ -29,6 +29,7 @@ ROLE_PERMISSIONS = {
         "integrations:read",
         "users:read",
         "users:write",
+        "permissions:read",
     },
     "super_admin": {"*"},
 }
@@ -43,6 +44,14 @@ def has_permission(user, permission):
         return False
     perms = permissions_for_role(user["role"])
     return "*" in perms or permission in perms
+
+
+def can_manage_company(user, target_company_id):
+    if not user:
+        return False
+    if user["role"] == "super_admin":
+        return True
+    return int(user["company_id"]) == int(target_company_id)
 
 
 def authenticate_user(company_slug, login, password):
