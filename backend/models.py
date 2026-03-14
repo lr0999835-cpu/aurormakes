@@ -59,6 +59,7 @@ class Order:
     customer_name: str
     customer_phone: str
     customer_address: str
+    customer_id: int
     total: float
     status: str
     source: str
@@ -85,6 +86,7 @@ class Order:
             customer_name=row["customer_name"],
             customer_phone=row["customer_phone"],
             customer_address=row["customer_address"],
+            customer_id=int(row["customer_id"] or 0) if "customer_id" in row.keys() else 0,
             total=float(row["total"]),
             status=row["status"],
             source=row["source"] or "aurora_makes",
@@ -111,6 +113,7 @@ class Order:
             "customer_name": self.customer_name,
             "customer_phone": self.customer_phone,
             "customer_address": self.customer_address,
+            "customer_id": self.customer_id,
             "total": self.total,
             "status": self.status,
             "source": self.source,

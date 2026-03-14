@@ -137,6 +137,23 @@ def load_current_user():
     return auth_user
 
 
+def load_current_customer():
+    customer = session.get("customer_user")
+    g.current_customer = customer
+    return customer
+
+
+def customer_login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        customer = load_current_customer()
+        if not customer:
+            return redirect(url_for("customers.customer_login_page", next=request.full_path if request.query_string else request.path))
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):

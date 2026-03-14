@@ -13,7 +13,7 @@ SEED_PRODUCTS = [
         "Base líquida com acabamento iluminado.",
         59.9,
         25,
-        10,
+        100,
         "images/base-glow.svg",
         "BASE-GLOW-001",
         "",
@@ -178,6 +178,52 @@ def init_db():
             """
         )
 
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS customers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id INTEGER NOT NULL DEFAULT 1,
+                nome_completo TEXT NOT NULL,
+                email TEXT NOT NULL,
+                telefone TEXT NOT NULL,
+                senha_hash TEXT NOT NULL,
+                cpf TEXT DEFAULT '',
+                data_nascimento TEXT,
+                genero TEXT DEFAULT '',
+                ativo INTEGER NOT NULL DEFAULT 1,
+                aceita_marketing INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE,
+                UNIQUE(company_id, email)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS customer_addresses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id INTEGER NOT NULL DEFAULT 1,
+                customer_id INTEGER NOT NULL,
+                cep TEXT NOT NULL,
+                endereco TEXT NOT NULL,
+                numero TEXT NOT NULL,
+                complemento TEXT DEFAULT '',
+                bairro TEXT NOT NULL,
+                cidade TEXT NOT NULL,
+                estado TEXT NOT NULL,
+                referencia TEXT DEFAULT '',
+                is_default INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE,
+                FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE
+            )
+            """
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS orders (
@@ -186,6 +232,7 @@ def init_db():
                 customer_name TEXT NOT NULL,
                 customer_phone TEXT NOT NULL,
                 customer_address TEXT NOT NULL,
+                customer_id INTEGER,
                 total REAL NOT NULL,
                 status TEXT NOT NULL DEFAULT 'pending',
                 source TEXT NOT NULL DEFAULT 'aurora_makes',
@@ -342,6 +389,8 @@ def init_db():
         _add_column_if_missing(conn, "orders", "cancelled_at", "TEXT")
         _add_column_if_missing(conn, "orders", "transaction_id", "TEXT DEFAULT ''")
         _add_column_if_missing(conn, "orders", "updated_at", "TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP")
+
+        _add_column_if_missing(conn, "orders", "customer_id", "INTEGER")
 
         _add_column_if_missing(conn, "stock_movements", "source", "TEXT DEFAULT 'manual'")
         _add_column_if_missing(conn, "stock_movements", "reference_id", "TEXT DEFAULT ''")

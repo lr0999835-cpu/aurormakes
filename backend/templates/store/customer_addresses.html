@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Meus endereços</title><link rel="stylesheet" href="/css/style.css"></head>
+<body>
+  <main class="container section account-shell">
+    <h1>Meus endereços</h1>
+    <nav class="account-links"><a href="/minha-conta">Minha conta</a><a href="/meus-pedidos">Meus pedidos</a><a href="/meus-enderecos">Meus endereços</a><a href="/conta/sair">Sair</a></nav>
+    <form id="customer-address-form" class="account-form grid-2">
+      <label>CEP<input name="cep" required></label><label>Endereço<input name="endereco" required></label>
+      <label>Número<input name="numero" required></label><label>Complemento<input name="complemento"></label>
+      <label>Bairro<input name="bairro" required></label><label>Cidade<input name="cidade" required></label>
+      <label>Estado<input name="estado" required></label><label>Referência<input name="referencia"></label>
+      <label class="full-width"><input type="checkbox" name="is_default"> Definir como principal</label>
+      <button class="btn full-width" type="submit">Salvar endereço</button>
+      <p id="form-message" class="full-width"></p>
+    </form>
+    <div id="customer-address-list"></div>
+  </main>
+  <script src="/js/customer.js"></script>
+</body></html>

@@ -1550,3 +1550,33 @@ input, select {
     justify-content: flex-start;
   }
 }
+
+.customer-menu {
+  position: absolute;
+  top: 64px;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ead9e1;
+  border-radius: 14px;
+  min-width: 180px;
+  box-shadow: 0 10px 30px rgba(81, 48, 66, .12);
+  padding: 8px;
+  display: none;
+  z-index: 30;
+}
+.header-icons { position: relative; }
+.customer-menu.is-open { display: flex; flex-direction: column; }
+.customer-menu a { padding: 10px; border-radius: 10px; color: #543647; text-decoration: none; }
+.customer-menu a:hover { background: #f8eef3; }
+
+.account-shell { max-width: 760px; }
+.account-form { background: #fff; padding: 20px; border-radius: 16px; border: 1px solid #ead9e1; display: grid; gap: 14px; }
+.account-form label { display: flex; flex-direction: column; gap: 6px; font-size: .95rem; color: #543647; }
+.account-form input, .account-form select { padding: 10px 12px; border: 1px solid #d8becc; border-radius: 10px; }
+.account-links { display: flex; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+.account-links a { color: #543647; text-decoration: none; font-weight: 600; }
+.account-card { border: 1px solid #ead9e1; border-radius: 14px; padding: 14px; margin-bottom: 12px; background: #fff; }
+.full-width { grid-column: 1 / -1; }
+@media (max-width: 768px) {
+  .grid-2 { grid-template-columns: 1fr; }
+}
