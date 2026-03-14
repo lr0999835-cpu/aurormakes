@@ -54,15 +54,21 @@ async function createOrderFromCart() {
     customer_name,
     customer_phone,
     customer_address,
+    source: "aurora_makes",
+    payment_status: "paid",
+    payment_method: "whatsapp",
     items: detailedCart.map((item) => ({
       product_id: item.id,
       quantity: item.quantidade
     }))
   };
 
-  const response = await fetch("/api/orders", {
+  const response = await fetch("/api/checkout", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Device-Type": window.matchMedia("(max-width: 768px)").matches ? "mobile" : "desktop"
+    },
     body: JSON.stringify(payload)
   });
 

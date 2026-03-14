@@ -1,3 +1,4 @@
+import logging
 import os
 
 from flask import Flask, abort, render_template, send_from_directory
@@ -13,6 +14,7 @@ ALLOWED_STATIC_DIRS = {"css", "js", "images"}
 
 
 def create_app():
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
     app = Flask(__name__, template_folder="templates")
     app.secret_key = SECRET_KEY
 

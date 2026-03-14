@@ -1,4 +1,6 @@
 from collections import defaultdict
+import json
+import logging
 
 from database import get_connection
 from models import Order, Product
@@ -10,6 +12,9 @@ ORDER_SOURCES = ["aurora_makes", "shopee", "marketplace", "manual"]
 PAYMENT_STATUSES = ["pending", "paid", "refunded", "failed"]
 SHIPPING_STATUSES = ["pending", "ready_to_ship", "shipped", "delivered", "returned"]
 LOW_STOCK_LIMIT = 3
+
+logger = logging.getLogger(__name__)
+
 
 
 def _normalize_payload(payload):
@@ -226,8 +231,22 @@ def update_product_stock(product_id, stock, notes="Ajuste manual de estoque", so
     return True
 
 
+def _normalize_order_items(payload):
+    items = payload.get("items") or payload.get("cart") or payload.get("products") or []
+    normalized = []
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        product_id = item.get("product_id", item.get("productId", item.get("id", 0)))
+        quantity = item.get("quantity", item.get("qty", item.get("quantidade", 0)))
+        normalized.append({"product_id": product_id, "quantity": quantity})
+
+    return normalized
+
+
 def _normalize_order_payload(payload):
-    items = payload.get("items") or []
+    items = _normalize_order_items(payload)
     source = (payload.get("source") or "aurora_makes").strip().lower()
     if source not in ORDER_SOURCES:
         source = "marketplace"
@@ -241,14 +260,14 @@ def _normalize_order_payload(payload):
         shipping_status = "pending"
 
     return {
-        "customer_name": (payload.get("customer_name") or "").strip(),
-        "customer_phone": (payload.get("customer_phone") or "").strip(),
-        "customer_address": (payload.get("customer_address") or "").strip(),
+        "customer_name": (payload.get("customer_name") or payload.get("customerName") or "").strip(),
+        "customer_phone": (payload.get("customer_phone") or payload.get("customerPhone") or "").strip(),
+        "customer_address": (payload.get("customer_address") or payload.get("customerAddress") or "").strip(),
         "items": items,
         "source": source,
-        "external_order_id": (payload.get("external_order_id") or "").strip(),
+        "external_order_id": (payload.get("external_order_id") or payload.get("externalOrderId") or "").strip(),
         "payment_status": payment_status,
-        "payment_method": (payload.get("payment_method") or "").strip(),
+        "payment_method": (payload.get("payment_method") or payload.get("paymentMethod") or "").strip(),
         "shipping_method": (payload.get("shipping_method") or "").strip(),
         "shipping_tracking_code": (payload.get("shipping_tracking_code") or "").strip(),
         "shipping_label_url": (payload.get("shipping_label_url") or "").strip(),
@@ -369,7 +388,152 @@ def create_order(payload):
     return get_order(order_id)
 
 
-def list_orders(limit=None, source=None, status=None, payment_status=None, shipping_status=None):
+def _create_payment_record(conn, payment_id, order_id, amount, status, payment_method, source, customer_phone, raw_payload):
+    conn.execute(
+        """
+        INSERT OR REPLACE INTO payments (
+            id,
+            payment_id,
+            order_id,
+            amount,
+            status,
+            payment_method,
+            source,
+            customer_phone,
+            raw_payload,
+            created_at,
+            updated_at
+        )
+        VALUES (
+            (SELECT id FROM payments WHERE payment_id = ?),
+            ?, ?, ?, ?, ?, ?, ?, ?,
+            COALESCE((SELECT created_at FROM payments WHERE payment_id = ?), CURRENT_TIMESTAMP),
+            CURRENT_TIMESTAMP
+        )
+        """,
+        (
+            payment_id,
+            payment_id,
+            order_id,
+            float(amount or 0),
+            status,
+            payment_method,
+            source,
+            customer_phone,
+            json.dumps(raw_payload, ensure_ascii=False),
+            payment_id,
+        ),
+    )
+
+
+def _mark_order_paid(conn, order_id, payment_method=""):
+    conn.execute(
+        """
+        UPDATE orders
+        SET status = CASE WHEN status = 'pending' THEN 'paid' ELSE status END,
+            payment_status = 'paid',
+            payment_method = CASE WHEN ? != '' THEN ? ELSE payment_method END
+        WHERE id = ?
+        """,
+        (payment_method, payment_method, int(order_id)),
+    )
+
+
+def _find_order_for_payment(conn, payload):
+    order_id = payload.get("order_id") or payload.get("orderId")
+    if order_id:
+        row = conn.execute("SELECT id FROM orders WHERE id = ?", (int(order_id),)).fetchone()
+        if row:
+            return int(row["id"])
+
+    customer_phone = (payload.get("customer_phone") or payload.get("customerPhone") or "").strip()
+    amount = float(payload.get("amount") or 0)
+    if customer_phone and amount > 0:
+        row = conn.execute(
+            """
+            SELECT id FROM orders
+            WHERE customer_phone = ? AND ABS(total - ?) < 0.01
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (customer_phone, amount),
+        ).fetchone()
+        if row:
+            return int(row["id"])
+
+    return None
+
+
+def register_payment_event(payload):
+    payment_id = (payload.get("payment_id") or payload.get("paymentId") or payload.get("id") or "").strip()
+    if not payment_id:
+        raise ValueError("payment_id é obrigatório")
+
+    status = (payload.get("status") or "pending").strip().lower()
+    if status not in PAYMENT_STATUSES:
+        status = "pending"
+
+    order_payload = payload.get("order") if isinstance(payload.get("order"), dict) else payload
+
+    with get_connection() as conn:
+        order_id = _find_order_for_payment(conn, payload)
+
+        if not order_id and status == "paid":
+            logger.warning("Pagamento aprovado sem pedido prévio. Criando pedido de fallback. payment_id=%s", payment_id)
+            order = create_order({
+                **order_payload,
+                "payment_status": "paid",
+                "internal_notes": "Pedido criado automaticamente por webhook de pagamento",
+            })
+            order_id = int(order["id"])
+
+        _create_payment_record(
+            conn=conn,
+            payment_id=payment_id,
+            order_id=order_id,
+            amount=payload.get("amount") or 0,
+            status=status,
+            payment_method=(payload.get("payment_method") or payload.get("paymentMethod") or "").strip(),
+            source=(payload.get("source") or "aurora_makes").strip().lower(),
+            customer_phone=(payload.get("customer_phone") or payload.get("customerPhone") or "").strip(),
+            raw_payload=payload,
+        )
+
+        if order_id and status == "paid":
+            _mark_order_paid(conn, order_id, (payload.get("payment_method") or payload.get("paymentMethod") or "").strip())
+
+        conn.commit()
+
+    if order_id:
+        return get_order(order_id)
+
+    return {"payment_id": payment_id, "status": status, "order_id": None}
+
+
+def create_checkout(payload):
+    normalized = _normalize_order_payload(payload)
+    if normalized["payment_status"] == "pending":
+        normalized["payment_status"] = "paid"
+
+    order = create_order(normalized)
+
+    payment_id = (payload.get("payment_id") or payload.get("paymentId") or f"manual_{order['id']}").strip()
+    payment_payload = {
+        "payment_id": payment_id,
+        "order_id": order["id"],
+        "amount": order["total"],
+        "status": normalized["payment_status"],
+        "payment_method": normalized["payment_method"] or "manual",
+        "source": normalized["source"],
+        "customer_phone": normalized["customer_phone"],
+        "order": normalized,
+    }
+    register_payment_event(payment_payload)
+    logger.info("Checkout concluído com sucesso. order_id=%s payment_id=%s source=%s", order["id"], payment_id, normalized["source"])
+    return get_order(order["id"])
+
+
+def list_orders(limit=None, source=None, status=None, payment_status=None, shipping_status=None, customer_phone=None):
     query = "SELECT * FROM orders WHERE 1=1"
     params = []
 
@@ -385,6 +549,9 @@ def list_orders(limit=None, source=None, status=None, payment_status=None, shipp
     if shipping_status:
         query += " AND shipping_status = ?"
         params.append(shipping_status)
+    if customer_phone:
+        query += " AND customer_phone = ?"
+        params.append(customer_phone)
 
     query += " ORDER BY created_at DESC, id DESC"
 

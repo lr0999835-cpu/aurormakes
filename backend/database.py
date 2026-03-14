@@ -126,6 +126,25 @@ def init_db():
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                payment_id TEXT NOT NULL UNIQUE,
+                order_id INTEGER,
+                amount REAL NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'pending',
+                payment_method TEXT DEFAULT '',
+                source TEXT NOT NULL DEFAULT 'aurora_makes',
+                customer_phone TEXT DEFAULT '',
+                raw_payload TEXT DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE SET NULL
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS stock_movements (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 product_id INTEGER NOT NULL,
