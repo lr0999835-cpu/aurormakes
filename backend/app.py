@@ -5,6 +5,7 @@ from flask import Flask, abort, render_template, send_from_directory
 
 from config import DEBUG, PROJECT_ROOT, SECRET_KEY
 from database import init_db
+from locale_utils import BRAZIL_TZ, format_brl, format_date_br, format_datetime_br, format_time_br
 from routes.admin import admin_bp
 from routes.operations import operations_bp
 from routes.products import products_bp
@@ -22,7 +23,15 @@ def create_app():
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=not DEBUG,
         PERMANENT_SESSION_LIFETIME=60 * 60 * 8,
+        BABEL_DEFAULT_LOCALE="pt_BR",
+        TZ_NAME="America/Sao_Paulo",
     )
+    app.jinja_env.filters["brl"] = format_brl
+    app.jinja_env.filters["date_br"] = format_date_br
+    app.jinja_env.filters["time_br"] = format_time_br
+    app.jinja_env.filters["datetime_br"] = format_datetime_br
+    app.jinja_env.globals["tz_name"] = "America/Sao_Paulo"
+    app.jinja_env.globals["timezone_label"] = str(BRAZIL_TZ)
 
     init_db()
 

@@ -6,8 +6,9 @@ from werkzeug.security import check_password_hash
 from database import get_connection
 
 ROLE_PERMISSIONS = {
-    "viewer": {"orders:read", "products:read", "stock:read", "channels:read"},
-    "operator": {
+    "visualizador": {"orders:read", "products:read", "stock:read", "channels:read", "dashboard:read"},
+    "viewer": {"orders:read", "products:read", "stock:read", "channels:read", "dashboard:read"},
+    "operador": {
         "orders:read",
         "orders:write",
         "products:read",
@@ -16,7 +17,38 @@ ROLE_PERMISSIONS = {
         "stock:write",
         "channels:read",
     },
+    "operator": {
+        "orders:read",
+        "orders:write",
+        "products:read",
+        "stock:read",
+        "channels:read",
+    },
+    "gerente": {
+        "dashboard:read",
+        "orders:read",
+        "products:read",
+        "products:write",
+        "stock:read",
+        "channels:read",
+        "integrations:read",
+    },
     "company_admin": {
+        "dashboard:read",
+        "orders:read",
+        "orders:write",
+        "products:read",
+        "products:write",
+        "stock:read",
+        "stock:write",
+        "channels:read",
+        "channels:write",
+        "integrations:read",
+        "users:read",
+        "users:write",
+        "permissions:read",
+    },
+    "admin_empresa": {
         "dashboard:read",
         "orders:read",
         "orders:write",
@@ -34,9 +66,17 @@ ROLE_PERMISSIONS = {
     "super_admin": {"*"},
 }
 
+ROLE_ALIASES = {
+    "viewer": "visualizador",
+    "operator": "operador",
+    "company_admin": "admin_empresa",
+}
+
+
 
 def permissions_for_role(role):
-    return ROLE_PERMISSIONS.get(role, set())
+    normalized = ROLE_ALIASES.get((role or "").strip().lower(), (role or "").strip().lower())
+    return ROLE_PERMISSIONS.get(normalized, set())
 
 
 def has_permission(user, permission):
@@ -85,8 +125,8 @@ def authenticate_user(company_slug, email, password):
         "company_name": row["company_name"],
         "username": row["username"],
         "email": row["email"],
-        "role": row["role"],
-        "permission_level": row["role"],
+        "role": ROLE_ALIASES.get(row["role"], row["role"]),
+        "permission_level": ROLE_ALIASES.get(row["role"], row["role"]),
     }
     return user, None
 

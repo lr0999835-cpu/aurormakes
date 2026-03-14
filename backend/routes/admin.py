@@ -15,6 +15,7 @@ from auth import (
     permission_required,
 )
 from database import get_connection
+from locale_utils import format_datetime_br, now_brt
 from services import (
     ORDER_SOURCES,
     ORDER_STATUSES,
@@ -40,7 +41,8 @@ from services import (
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 VALID_ROLES = tuple(ROLE_PERMISSIONS.keys())
 DASHBOARD_PERIOD_DEFAULT = 14
-COMPARISON_PERIOD_OPTIONS = {7, 14, 30, 90}
+COMPARISON_PERIOD_OPTIONS = {1, 7, 14, 30, 60, 90}
+PERIOD_LABELS = {1: "Hoje", 7: "Últimos 7 dias", 14: "Últimos 14 dias", 30: "Últimos 30 dias", 60: "Últimos 60 dias", 90: "Últimos 90 dias"}
 
 
 @admin_bp.before_app_request
@@ -110,6 +112,13 @@ def _build_dashboard_filters(args):
         "status": (args.get("status") or "").strip().lower(),
         "payment_status": (args.get("payment_status") or "").strip().lower(),
         "shipping_status": (args.get("shipping_status") or "").strip().lower(),
+        "product": (args.get("product") or "").strip().lower(),
+        "category": (args.get("category") or "").strip().lower(),
+        "state": (args.get("state") or "").strip().upper(),
+        "city": (args.get("city") or "").strip().lower(),
+        "channel": (args.get("channel") or "").strip().lower(),
+        "device": (args.get("device") or "").strip().lower(),
+        "traffic_source": (args.get("traffic_source") or "").strip().lower(),
     }
 
 
@@ -118,6 +127,8 @@ def _order_matches_filters(order, filters):
         expected = filters.get(field)
         if expected and (order.get(field) or "").strip().lower() != expected:
             return False
+    if filters.get("state") and _normalize_state_from_address(order.get("customer_address")) != filters["state"]:
+        return False
     return True
 
 
@@ -152,7 +163,7 @@ def _aggregate_top_products(company_id, order_ids):
 
 
 def _build_dashboard_widgets(company_id, role, metrics, filters):
-    today = datetime.utcnow().date()
+    today = now_brt().date()
     period_days = int(filters["period_days"])
     start_day = today - timedelta(days=period_days - 1)
     prev_start = start_day - timedelta(days=period_days)
@@ -253,8 +264,19 @@ def _build_dashboard_widgets(company_id, role, metrics, filters):
 
     role_widgets = {
         "super_admin": "all",
+        "admin_empresa": "all",
         "company_admin": "all",
-        "operator": {
+        "gerente": {
+            "today_summary",
+            "sales_performance",
+            "traffic_acquisition",
+            "operations",
+            "customer_intelligence",
+            "product_intelligence",
+            "alerts",
+            "recent_orders",
+        },
+        "operador": {
             "today_summary",
             "sales_performance",
             "operations",
@@ -262,11 +284,12 @@ def _build_dashboard_widgets(company_id, role, metrics, filters):
             "alerts",
             "recent_orders",
         },
+        "visualizador": {"today_summary", "sales_performance", "recent_orders", "product_intelligence"},
         "viewer": {"today_summary", "sales_performance", "recent_orders", "product_intelligence"},
     }
 
     return {
-        "period_label": f"Últimos {period_days} dias",
+        "period_label": PERIOD_LABELS.get(period_days, f"Últimos {period_days} dias"),
         "kpis": [
             {"label": "Receita hoje", "value": metrics["sales_today_revenue"], "currency": True, "change": _pct_change(metrics["sales_today_revenue"], prev_revenue / max(period_days, 1)), "icon": "💰"},
             {"label": "Receita no período", "value": period_revenue, "currency": True, "change": _pct_change(period_revenue, prev_revenue), "icon": "📈"},
@@ -286,7 +309,7 @@ def _build_dashboard_widgets(company_id, role, metrics, filters):
         "source_summary": sorted(source_summary.values(), key=lambda item: item["revenue"], reverse=True),
         "geo_summary": sorted(geography_summary.values(), key=lambda item: item["revenue"], reverse=True),
         "order_status": order_status,
-        "recent_orders": recent_orders,
+        "recent_orders": [{**o, "created_at_br": format_datetime_br(o.get("created_at"))} for o in recent_orders],
         "top_products": top_products,
         "new_products": new_products,
         "low_stock_products": low_stock_products[:8],

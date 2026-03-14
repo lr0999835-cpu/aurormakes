@@ -310,13 +310,13 @@
   <section class="dashboard-hero">
     <div class="hero-top">
       <div>
-        <h1>Aurora Makes · Enterprise Intelligence Hub</h1>
-        <p>Operational clarity, strategic confidence and executive visibility in one premium cockpit.</p>
+        <h1>Aurora Makes · Central de Inteligência Executiva</h1>
+        <p>Visão executiva em tempo real para operação, financeiro e crescimento do ecommerce.</p>
       </div>
       <div class="hero-trend">
-        <span>Top summary</span>
-        <strong>Revenue momentum +18.4%</strong>
-        <span>Conversion stable · Demand confidence high</span>
+        <span>Resumo do momento</span>
+        <strong>Tendência de faturamento +18,4%</strong>
+        <span>Conversão estável · Demanda aquecida</span>
       </div>
     </div>
 
@@ -331,7 +331,7 @@
           <span class="filter-tag">Entrega: {{ dashboard.filters_applied.shipping_status or "Todos" }}</span>
         </div>
         <div class="comparison-chips">
-          <span class="comparison-chip">vs período anterior</span>
+          <span class="comparison-chip">comparado ao período anterior</span>
           <span class="comparison-chip">vs média trimestral</span>
           <span class="comparison-chip">Benchmark interno</span>
         </div>
@@ -350,8 +350,8 @@
     <section class="section-block">
       <div class="section-header">
         <div>
-          <p class="section-eyebrow">Executive KPI Board</p>
-          <h2>Performance snapshot</h2>
+          <p class="section-eyebrow">KPIs Executivos</p>
+          <h2>Resumo de performance</h2>
           <p class="section-description">KPIs críticos com leitura rápida, tendência e comparação contextual.</p>
         </div>
         <span class="pill">Comparação habilitada</span>
@@ -365,10 +365,9 @@
               <span class="trend-badge {{ 'trend-up' if is_up else 'trend-down' }}">{{ '▲' if is_up else '▼' }} {{ '%+.1f'|format(kpi.change) }}%</span>
             </div>
             <div class="metric-value">
-              {% if kpi.currency %}R$ {% endif %}
-              {{ '%.2f'|format(kpi.value) if kpi.currency else ('%.1f'|format(kpi.value) if kpi.suffix else kpi.value) }}{% if kpi.suffix %}{{ kpi.suffix }}{% endif %}
+              {{ kpi.value|brl if kpi.currency else ('%.1f'|format(kpi.value) ~ kpi.suffix if kpi.suffix else kpi.value) }}
             </div>
-            <p class="metric-foot">vs período anterior</p>
+            <p class="metric-foot">comparado ao período anterior</p>
           </article>
         {% endfor %}
       </div>
@@ -380,8 +379,8 @@
       <article class="section-block col-8">
         <div class="section-header">
           <div>
-            <p class="section-eyebrow">Revenue Analytics</p>
-            <h2>Sales performance</h2>
+            <p class="section-eyebrow">Análise de faturamento</p>
+            <h2>Desempenho de vendas</h2>
             <p class="section-description">Visual premium de ritmo de vendas com leitura de pico e consistência.</p>
           </div>
           <span class="pill">14 dias</span>
@@ -397,18 +396,18 @@
       <article class="section-block col-4">
         <div class="section-header">
           <div>
-            <p class="section-eyebrow">Product Leaders</p>
+            <p class="section-eyebrow">Líderes de produto</p>
             <h2>Top produtos</h2>
             <p class="section-description">Itens com maior contribuição de receita no período.</p>
           </div>
-          <span class="pill">Revenue</span>
+          <span class="pill">Receita</span>
         </div>
         <div class="data-table-wrap">
           <table>
             <thead><tr><th>Produto</th><th>Qtd</th><th>Receita</th></tr></thead>
             <tbody>
               {% for product in dashboard.top_products %}
-                <tr><td>{{ product.name }}</td><td>{{ product.quantity }}</td><td>R$ {{ '%.2f'|format(product.revenue) }}</td></tr>
+                <tr><td>{{ product.name }}</td><td>{{ product.quantity }}</td><td>{{ product.revenue|brl }}</td></tr>
               {% else %}
                 <tr><td colspan="3"><div class="empty-state">Sem vendas no período.</div></td></tr>
               {% endfor %}
@@ -423,7 +422,7 @@
         <div class="section-header">
           <div>
             <p class="section-eyebrow">Acquisition Intelligence</p>
-            <h2>Traffic & acquisition</h2>
+            <h2>Tráfego e aquisição</h2>
             <p class="section-description">Resumo de canais e padrões de descoberta para orientar investimento.</p>
           </div>
           <span class="status-badge status-ok">Healthy mix</span>
@@ -508,8 +507,8 @@
       <article class="section-block col-12">
         <div class="section-header">
           <div>
-            <p class="section-eyebrow">Catalog Control</p>
-            <h2>Product intelligence</h2>
+            <p class="section-eyebrow">Gestão de catálogo</p>
+            <h2>Inteligência de produtos</h2>
             <p class="section-description">Balanceamento entre risco de ruptura, inovação e margem.</p>
           </div>
           <span class="pill">Mix + estoque</span>
@@ -537,7 +536,7 @@
                 <thead><tr><th>Produto</th><th>Categoria</th><th>Status</th><th>Preço</th></tr></thead>
                 <tbody>
                   {% for product in dashboard.new_products %}
-                    <tr><td>{{ product.name }}</td><td>{{ product.category }}</td><td><span class="status-badge status-ok">Novo</span></td><td>R$ {{ '%.2f'|format(product.price) }}</td></tr>
+                    <tr><td>{{ product.name }}</td><td>{{ product.category }}</td><td><span class="status-badge status-ok">Novo</span></td><td>{{ product.price|brl }}</td></tr>
                   {% else %}
                     <tr><td colspan="4"><div class="empty-state">Sem novos produtos.</div></td></tr>
                   {% endfor %}
@@ -553,8 +552,8 @@
       <article class="section-block col-12">
         <div class="section-header">
           <div>
-            <p class="section-eyebrow">Decision Engine</p>
-            <h2>Alerts & recommendations</h2>
+            <p class="section-eyebrow">Motor de decisão</p>
+            <h2>Alertas e recomendações</h2>
             <p class="section-description">Alertas acionáveis por prioridade para resposta executiva rápida.</p>
           </div>
           <span class="pill">Smart alerts</span>
@@ -573,7 +572,7 @@
       <article class="section-block col-12">
         <div class="section-header">
           <div>
-            <p class="section-eyebrow">Live Operations</p>
+            <p class="section-eyebrow">Operação ao vivo</p>
             <h2>Pedidos recentes</h2>
             <p class="section-description">Tabela refinada para leitura operacional com status e confiança de execução.</p>
           </div>
@@ -581,20 +580,21 @@
         </div>
         <div class="data-table-wrap">
           <table>
-            <thead><tr><th>ID</th><th>Cliente</th><th>Origem</th><th>Status</th><th>Pagamento</th><th>Envio</th><th>Total</th></tr></thead>
+            <thead><tr><th>ID</th><th>Data</th><th>Cliente</th><th>Origem</th><th>Status</th><th>Pagamento</th><th>Envio</th><th>Total</th></tr></thead>
             <tbody>
               {% for order in dashboard.recent_orders %}
                 <tr>
                   <td>#{{ order.id }}</td>
+                  <td>{{ order.created_at_br }}</td>
                   <td>{{ order.customer_name }}</td>
                   <td>{{ order.source }}</td>
                   <td><span class="status-badge status-ok">{{ order.status }}</span></td>
                   <td><span class="status-badge status-warn">{{ order.payment_status }}</span></td>
                   <td><span class="status-badge status-ok">{{ order.shipping_status }}</span></td>
-                  <td>R$ {{ '%.2f'|format(order.total) }}</td>
+                  <td>{{ order.total|brl }}</td>
                 </tr>
               {% else %}
-                <tr><td colspan="7"><div class="empty-state">Nenhum pedido encontrado.</div></td></tr>
+                <tr><td colspan="8"><div class="empty-state">Nenhum pedido encontrado.</div></td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -605,8 +605,8 @@
     <article class="section-block col-12">
       <div class="section-header">
         <div>
-          <p class="section-eyebrow">Loading Preview</p>
-          <h2>Skeleton states</h2>
+          <p class="section-eyebrow">Estado de carregamento</p>
+          <h2>Pré-carregamento (UX)</h2>
           <p class="section-description">Pré-visualização do estado de carregamento para manter fluidez de interface.</p>
         </div>
         <span class="pill">UX polish</span>

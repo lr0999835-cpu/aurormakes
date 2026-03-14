@@ -7,7 +7,7 @@ from models import Order, Product
 
 
 REQUIRED_FIELDS = ["name", "category", "price", "cost", "stock", "sku"]
-ORDER_STATUSES = ["pending", "paid", "preparing", "ready_to_ship", "shipped", "delivered", "cancelled"]
+ORDER_STATUSES = ["novo", "pendente", "em_aprovacao", "aprovado", "separando", "enviado", "entregue", "cancelado", "pending", "paid", "preparing", "ready_to_ship", "shipped", "delivered", "cancelled"]
 ORDER_SOURCES = ["aurora_makes", "shopee", "marketplace", "manual"]
 PAYMENT_STATUSES = ["pending", "paid", "refunded", "failed"]
 SHIPPING_STATUSES = ["pending", "ready_to_ship", "shipped", "delivered", "returned"]
