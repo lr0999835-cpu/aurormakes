@@ -1,5 +1,8 @@
 import sqlite3
 from contextlib import contextmanager
+import os
+
+from werkzeug.security import generate_password_hash
 
 from config import DATABASE_PATH
 
@@ -69,8 +72,40 @@ def init_db():
     with get_connection() as conn:
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS companies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                slug TEXT NOT NULL UNIQUE,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id INTEGER NOT NULL,
+                username TEXT NOT NULL,
+                email TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'viewer',
+                is_active INTEGER NOT NULL DEFAULT 1,
+                last_login_at TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE,
+                UNIQUE(company_id, username),
+                UNIQUE(company_id, email)
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS products (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id INTEGER NOT NULL DEFAULT 1,
                 name TEXT NOT NULL,
                 category TEXT NOT NULL,
                 description TEXT DEFAULT '',
@@ -82,7 +117,8 @@ def init_db():
                 barcode TEXT DEFAULT '',
                 supplier_reference TEXT DEFAULT '',
                 is_active INTEGER NOT NULL DEFAULT 1,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE
             )
             """
         )
@@ -91,6 +127,7 @@ def init_db():
             """
             CREATE TABLE IF NOT EXISTS orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id INTEGER NOT NULL DEFAULT 1,
                 customer_name TEXT NOT NULL,
                 customer_phone TEXT NOT NULL,
                 customer_address TEXT NOT NULL,
@@ -105,7 +142,8 @@ def init_db():
                 shipping_label_url TEXT DEFAULT '',
                 shipping_status TEXT NOT NULL DEFAULT 'pending',
                 internal_notes TEXT DEFAULT '',
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE
             )
             """
         )
@@ -114,12 +152,14 @@ def init_db():
             """
             CREATE TABLE IF NOT EXISTS order_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id INTEGER NOT NULL DEFAULT 1,
                 order_id INTEGER NOT NULL,
                 product_id INTEGER NOT NULL,
                 quantity INTEGER NOT NULL,
                 price REAL NOT NULL,
                 FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE,
-                FOREIGN KEY(product_id) REFERENCES products(id)
+                FOREIGN KEY(product_id) REFERENCES products(id),
+                FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE
             )
             """
         )
@@ -128,6 +168,7 @@ def init_db():
             """
             CREATE TABLE IF NOT EXISTS payments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id INTEGER NOT NULL DEFAULT 1,
                 payment_id TEXT NOT NULL UNIQUE,
                 order_id INTEGER,
                 amount REAL NOT NULL DEFAULT 0,
@@ -138,7 +179,8 @@ def init_db():
                 raw_payload TEXT DEFAULT '{}',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE SET NULL
+                FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE SET NULL,
+                FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE
             )
             """
         )
@@ -147,6 +189,7 @@ def init_db():
             """
             CREATE TABLE IF NOT EXISTS stock_movements (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id INTEGER NOT NULL DEFAULT 1,
                 product_id INTEGER NOT NULL,
                 movement_type TEXT NOT NULL,
                 quantity INTEGER NOT NULL,
@@ -154,7 +197,8 @@ def init_db():
                 reference_id TEXT DEFAULT '',
                 notes TEXT DEFAULT '',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(product_id) REFERENCES products(id)
+                FOREIGN KEY(product_id) REFERENCES products(id),
+                FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE
             )
             """
         )
@@ -163,6 +207,7 @@ def init_db():
             """
             CREATE TABLE IF NOT EXISTS product_channels (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id INTEGER NOT NULL DEFAULT 1,
                 product_id INTEGER NOT NULL,
                 channel_name TEXT NOT NULL,
                 external_product_id TEXT NOT NULL,
@@ -170,15 +215,21 @@ def init_db():
                 is_active INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE,
+                FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE CASCADE,
                 UNIQUE(product_id, channel_name, external_product_id)
             )
             """
+        )
+
+        conn.execute(
+            "INSERT OR IGNORE INTO companies (id, name, slug, is_active) VALUES (1, 'Aurora Makes', 'aurora-makes', 1)"
         )
 
         # Compatibilidade com bancos antigos
         _add_column_if_missing(conn, "products", "sku", "TEXT DEFAULT ''")
         _add_column_if_missing(conn, "products", "barcode", "TEXT DEFAULT ''")
         _add_column_if_missing(conn, "products", "supplier_reference", "TEXT DEFAULT ''")
+        _add_column_if_missing(conn, "products", "company_id", "INTEGER NOT NULL DEFAULT 1")
 
         _add_column_if_missing(conn, "orders", "source", "TEXT NOT NULL DEFAULT 'aurora_makes'")
         _add_column_if_missing(conn, "orders", "external_order_id", "TEXT DEFAULT ''")
@@ -189,15 +240,22 @@ def init_db():
         _add_column_if_missing(conn, "orders", "shipping_label_url", "TEXT DEFAULT ''")
         _add_column_if_missing(conn, "orders", "shipping_status", "TEXT NOT NULL DEFAULT 'pending'")
         _add_column_if_missing(conn, "orders", "internal_notes", "TEXT DEFAULT ''")
+        _add_column_if_missing(conn, "orders", "company_id", "INTEGER NOT NULL DEFAULT 1")
 
         _add_column_if_missing(conn, "stock_movements", "source", "TEXT DEFAULT 'manual'")
         _add_column_if_missing(conn, "stock_movements", "reference_id", "TEXT DEFAULT ''")
+        _add_column_if_missing(conn, "stock_movements", "company_id", "INTEGER NOT NULL DEFAULT 1")
 
-        count = conn.execute("SELECT COUNT(*) as total FROM products").fetchone()["total"]
+        _add_column_if_missing(conn, "order_items", "company_id", "INTEGER NOT NULL DEFAULT 1")
+        _add_column_if_missing(conn, "payments", "company_id", "INTEGER NOT NULL DEFAULT 1")
+        _add_column_if_missing(conn, "product_channels", "company_id", "INTEGER NOT NULL DEFAULT 1")
+
+        count = conn.execute("SELECT COUNT(*) as total FROM products WHERE company_id = 1").fetchone()["total"]
         if count == 0:
             conn.executemany(
                 """
                 INSERT INTO products (
+                    company_id,
                     name,
                     category,
                     description,
@@ -210,9 +268,20 @@ def init_db():
                     supplier_reference,
                     is_active
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                SEED_PRODUCTS,
+                [(1, *product) for product in SEED_PRODUCTS],
             )
+
+        default_admin_email = os.getenv("AURORA_ADMIN_EMAIL", "admin@aurora.local")
+        default_admin_user = os.getenv("AURORA_ADMIN_USERNAME", "admin")
+        default_admin_password = os.getenv("AURORA_ADMIN_PASSWORD", "Admin#12345")
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO users (company_id, username, email, password_hash, role, is_active)
+            VALUES (?, ?, ?, ?, 'company_admin', 1)
+            """,
+            (1, default_admin_user, default_admin_email, generate_password_hash(default_admin_password)),
+        )
 
         conn.commit()

@@ -8,8 +8,19 @@
   {% block head_extra %}{% endblock %}
 </head>
 <body class="admin-body">
-  {% include 'admin/_admin_nav.html' %}
+  {% if g.current_user %}
+    {% include 'admin/_admin_nav.html' %}
+  {% endif %}
   <main class="container admin-main section">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="admin-alerts">
+          {% for category, message in messages %}
+            <p class="admin-alert admin-alert-{{ category }}">{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
     {% block content %}{% endblock %}
   </main>
 </body>

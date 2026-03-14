@@ -1,0 +1,28 @@
+{% extends 'admin/_layout.html' %}
+{% block title %}Usuários | Admin{% endblock %}
+{% block content %}
+<section class="admin-section">
+  <h1>Usuários da empresa</h1>
+  <p>Lista de contas autorizadas para este tenant.</p>
+  <div class="admin-table-wrapper">
+    <table class="admin-table">
+      <thead>
+        <tr><th>Usuário</th><th>E-mail</th><th>Papel</th><th>Status</th><th>Último login</th></tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr>
+          <td>{{ user.username }}</td>
+          <td>{{ user.email }}</td>
+          <td>{{ user.role }}</td>
+          <td>{{ 'Ativo' if user.is_active else 'Inativo' }}</td>
+          <td>{{ user.last_login_at or '-' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">Nenhum usuário cadastrado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

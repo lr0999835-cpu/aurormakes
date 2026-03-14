@@ -51,21 +51,21 @@ def validate_product_payload(payload):
     return normalized
 
 
-def list_products(include_inactive=False):
-    query = "SELECT * FROM products"
+def list_products(company_id, include_inactive=False):
+    query = "SELECT * FROM products WHERE company_id = ?"
     if not include_inactive:
-        query += " WHERE is_active = 1"
+        query += " AND is_active = 1"
     query += " ORDER BY created_at DESC"
 
     with get_connection() as conn:
-        rows = conn.execute(query).fetchall()
+        rows = conn.execute(query, (int(company_id),)).fetchall()
 
     return [Product.from_row(row) for row in rows]
 
 
-def get_product(product_id):
+def get_product(company_id, product_id):
     with get_connection() as conn:
-        row = conn.execute("SELECT * FROM products WHERE id = ?", (product_id,)).fetchone()
+        row = conn.execute("SELECT * FROM products WHERE company_id = ? AND id = ?", (int(company_id), product_id)).fetchone()
 
     if not row:
         return None
@@ -73,13 +73,15 @@ def get_product(product_id):
     return Product.from_row(row)
 
 
-def create_product(payload):
+def create_product(company_id, payload):
     data = validate_product_payload(payload)
+    data["company_id"] = int(company_id)
 
     with get_connection() as conn:
         cursor = conn.execute(
             """
             INSERT INTO products (
+                company_id,
                 name,
                 category,
                 description,
@@ -93,6 +95,7 @@ def create_product(payload):
                 is_active
             )
             VALUES (
+                :company_id,
                 :name,
                 :category,
                 :description,
@@ -111,14 +114,15 @@ def create_product(payload):
         conn.commit()
         product_id = cursor.lastrowid
 
-    return get_product(product_id)
+    return get_product(company_id, product_id)
 
 
-def update_product(product_id, payload):
-    if not get_product(product_id):
+def update_product(company_id, product_id, payload):
+    if not get_product(company_id, product_id):
         return None
 
     data = validate_product_payload(payload)
+    data["company_id"] = int(company_id)
     data["id"] = product_id
 
     with get_connection() as conn:
@@ -136,55 +140,56 @@ def update_product(product_id, payload):
                 barcode = :barcode,
                 supplier_reference = :supplier_reference,
                 is_active = :is_active
-            WHERE id = :id
+            WHERE company_id = :company_id AND id = :id
             """,
             data,
         )
         conn.commit()
 
-    return get_product(product_id)
+    return get_product(company_id, product_id)
 
 
-def delete_product(product_id):
+def delete_product(company_id, product_id):
     with get_connection() as conn:
-        cursor = conn.execute("DELETE FROM products WHERE id = ?", (product_id,))
+        cursor = conn.execute("DELETE FROM products WHERE company_id = ? AND id = ?", (int(company_id), product_id))
         conn.commit()
 
     return cursor.rowcount > 0
 
 
-def set_product_active(product_id, is_active):
+def set_product_active(company_id, product_id, is_active):
     with get_connection() as conn:
         cursor = conn.execute(
-            "UPDATE products SET is_active = ? WHERE id = ?",
-            (1 if is_active else 0, product_id),
+            "UPDATE products SET is_active = ? WHERE company_id = ? AND id = ?",
+            (1 if is_active else 0, int(company_id), product_id),
         )
         conn.commit()
 
     return cursor.rowcount > 0
 
 
-def create_stock_movement(conn, product_id, movement_type, quantity, notes="", source="manual", reference_id=""):
+def create_stock_movement(conn, company_id, product_id, movement_type, quantity, notes="", source="manual", reference_id=""):
     conn.execute(
         """
-        INSERT INTO stock_movements (product_id, movement_type, quantity, source, reference_id, notes)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO stock_movements (company_id, product_id, movement_type, quantity, source, reference_id, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (int(product_id), movement_type, int(quantity), source, str(reference_id), notes),
+        (int(company_id), int(product_id), movement_type, int(quantity), source, str(reference_id), notes),
     )
 
 
-def list_stock_movements(limit=200):
+def list_stock_movements(company_id, limit=200):
     with get_connection() as conn:
         rows = conn.execute(
             """
             SELECT sm.*, p.name as product_name, p.sku as product_sku
             FROM stock_movements sm
             JOIN products p ON p.id = sm.product_id
+            WHERE sm.company_id = ?
             ORDER BY sm.created_at DESC, sm.id DESC
             LIMIT ?
             """,
-            (int(limit),),
+            (int(company_id), int(limit)),
         ).fetchall()
 
     return [
@@ -204,13 +209,13 @@ def list_stock_movements(limit=200):
     ]
 
 
-def update_product_stock(product_id, stock, notes="Ajuste manual de estoque", source="manual", reference_id=""):
+def update_product_stock(company_id, product_id, stock, notes="Ajuste manual de estoque", source="manual", reference_id=""):
     stock_value = int(stock)
     if stock_value < 0:
         raise ValueError("Estoque deve ser maior ou igual a 0")
 
     with get_connection() as conn:
-        row = conn.execute("SELECT stock FROM products WHERE id = ?", (product_id,)).fetchone()
+        row = conn.execute("SELECT stock FROM products WHERE company_id = ? AND id = ?", (int(company_id), product_id)).fetchone()
         if not row:
             return False
 
@@ -218,13 +223,13 @@ def update_product_stock(product_id, stock, notes="Ajuste manual de estoque", so
         delta = stock_value - old_stock
 
         conn.execute(
-            "UPDATE products SET stock = ? WHERE id = ?",
-            (stock_value, product_id),
+            "UPDATE products SET stock = ? WHERE company_id = ? AND id = ?",
+            (stock_value, int(company_id), product_id),
         )
 
         if delta != 0:
             movement = "manual_in" if delta > 0 else "manual_out"
-            create_stock_movement(conn, product_id, movement, abs(delta), notes, source=source, reference_id=reference_id)
+            create_stock_movement(conn, company_id, product_id, movement, abs(delta), notes, source=source, reference_id=reference_id)
 
         conn.commit()
 
@@ -276,7 +281,7 @@ def _normalize_order_payload(payload):
     }
 
 
-def create_order(payload):
+def create_order(company_id, payload):
     data = _normalize_order_payload(payload)
 
     if not data["customer_name"] or not data["customer_phone"] or not data["customer_address"]:
@@ -289,8 +294,8 @@ def create_order(payload):
         product_ids = [int(item.get("product_id", 0)) for item in data["items"]]
         placeholders = ",".join(["?"] * len(product_ids))
         rows = conn.execute(
-            f"SELECT * FROM products WHERE id IN ({placeholders})",
-            tuple(product_ids),
+            f"SELECT * FROM products WHERE company_id = ? AND id IN ({placeholders})",
+            (int(company_id), *tuple(product_ids)),
         ).fetchall()
 
         products_by_id = {int(row["id"]): row for row in rows}
@@ -325,6 +330,7 @@ def create_order(payload):
         order_cursor = conn.execute(
             """
             INSERT INTO orders (
+                company_id,
                 customer_name,
                 customer_phone,
                 customer_address,
@@ -340,9 +346,10 @@ def create_order(payload):
                 shipping_status,
                 internal_notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
+                int(company_id),
                 data["customer_name"],
                 data["customer_phone"],
                 data["customer_address"],
@@ -364,17 +371,18 @@ def create_order(payload):
         for item in normalized_items:
             conn.execute(
                 """
-                INSERT INTO order_items (order_id, product_id, quantity, price)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO order_items (company_id, order_id, product_id, quantity, price)
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                (order_id, item["product_id"], item["quantity"], item["price"]),
+                (int(company_id), order_id, item["product_id"], item["quantity"], item["price"]),
             )
             conn.execute(
-                "UPDATE products SET stock = stock - ? WHERE id = ?",
-                (item["quantity"], item["product_id"]),
+                "UPDATE products SET stock = stock - ? WHERE company_id = ? AND id = ?",
+                (item["quantity"], int(company_id), item["product_id"]),
             )
             create_stock_movement(
                 conn,
+                company_id,
                 item["product_id"],
                 "order_out",
                 item["quantity"],
@@ -385,14 +393,15 @@ def create_order(payload):
 
         conn.commit()
 
-    return get_order(order_id)
+    return get_order(company_id, order_id)
 
 
-def _create_payment_record(conn, payment_id, order_id, amount, status, payment_method, source, customer_phone, raw_payload):
+def _create_payment_record(conn, company_id, payment_id, order_id, amount, status, payment_method, source, customer_phone, raw_payload):
     conn.execute(
         """
         INSERT OR REPLACE INTO payments (
             id,
+            company_id,
             payment_id,
             order_id,
             amount,
@@ -406,13 +415,14 @@ def _create_payment_record(conn, payment_id, order_id, amount, status, payment_m
         )
         VALUES (
             (SELECT id FROM payments WHERE payment_id = ?),
-            ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?,
             COALESCE((SELECT created_at FROM payments WHERE payment_id = ?), CURRENT_TIMESTAMP),
             CURRENT_TIMESTAMP
         )
         """,
         (
             payment_id,
+            int(company_id),
             payment_id,
             order_id,
             float(amount or 0),
@@ -426,23 +436,23 @@ def _create_payment_record(conn, payment_id, order_id, amount, status, payment_m
     )
 
 
-def _mark_order_paid(conn, order_id, payment_method=""):
+def _mark_order_paid(conn, company_id, order_id, payment_method=""):
     conn.execute(
         """
         UPDATE orders
         SET status = CASE WHEN status = 'pending' THEN 'paid' ELSE status END,
             payment_status = 'paid',
             payment_method = CASE WHEN ? != '' THEN ? ELSE payment_method END
-        WHERE id = ?
+        WHERE company_id = ? AND id = ?
         """,
-        (payment_method, payment_method, int(order_id)),
+        (payment_method, payment_method, int(company_id), int(order_id)),
     )
 
 
-def _find_order_for_payment(conn, payload):
+def _find_order_for_payment(conn, company_id, payload):
     order_id = payload.get("order_id") or payload.get("orderId")
     if order_id:
-        row = conn.execute("SELECT id FROM orders WHERE id = ?", (int(order_id),)).fetchone()
+        row = conn.execute("SELECT id FROM orders WHERE company_id = ? AND id = ?", (int(company_id), int(order_id))).fetchone()
         if row:
             return int(row["id"])
 
@@ -452,11 +462,11 @@ def _find_order_for_payment(conn, payload):
         row = conn.execute(
             """
             SELECT id FROM orders
-            WHERE customer_phone = ? AND ABS(total - ?) < 0.01
+            WHERE company_id = ? AND customer_phone = ? AND ABS(total - ?) < 0.01
             ORDER BY id DESC
             LIMIT 1
             """,
-            (customer_phone, amount),
+            (int(company_id), customer_phone, amount),
         ).fetchone()
         if row:
             return int(row["id"])
@@ -464,7 +474,7 @@ def _find_order_for_payment(conn, payload):
     return None
 
 
-def register_payment_event(payload):
+def register_payment_event(company_id, payload):
     payment_id = (payload.get("payment_id") or payload.get("paymentId") or payload.get("id") or "").strip()
     if not payment_id:
         raise ValueError("payment_id é obrigatório")
@@ -476,11 +486,11 @@ def register_payment_event(payload):
     order_payload = payload.get("order") if isinstance(payload.get("order"), dict) else payload
 
     with get_connection() as conn:
-        order_id = _find_order_for_payment(conn, payload)
+        order_id = _find_order_for_payment(conn, company_id, payload)
 
         if not order_id and status == "paid":
             logger.warning("Pagamento aprovado sem pedido prévio. Criando pedido de fallback. payment_id=%s", payment_id)
-            order = create_order({
+            order = create_order(company_id, {
                 **order_payload,
                 "payment_status": "paid",
                 "internal_notes": "Pedido criado automaticamente por webhook de pagamento",
@@ -489,6 +499,7 @@ def register_payment_event(payload):
 
         _create_payment_record(
             conn=conn,
+            company_id=company_id,
             payment_id=payment_id,
             order_id=order_id,
             amount=payload.get("amount") or 0,
@@ -500,22 +511,22 @@ def register_payment_event(payload):
         )
 
         if order_id and status == "paid":
-            _mark_order_paid(conn, order_id, (payload.get("payment_method") or payload.get("paymentMethod") or "").strip())
+            _mark_order_paid(conn, company_id, order_id, (payload.get("payment_method") or payload.get("paymentMethod") or "").strip())
 
         conn.commit()
 
     if order_id:
-        return get_order(order_id)
+        return get_order(company_id, order_id)
 
     return {"payment_id": payment_id, "status": status, "order_id": None}
 
 
-def create_checkout(payload):
+def create_checkout(company_id, payload):
     normalized = _normalize_order_payload(payload)
     if normalized["payment_status"] == "pending":
         normalized["payment_status"] = "paid"
 
-    order = create_order(normalized)
+    order = create_order(company_id, normalized)
 
     payment_id = (payload.get("payment_id") or payload.get("paymentId") or f"manual_{order['id']}").strip()
     payment_payload = {
@@ -528,15 +539,15 @@ def create_checkout(payload):
         "customer_phone": normalized["customer_phone"],
         "order": normalized,
     }
-    register_payment_event(payment_payload)
+    register_payment_event(company_id, payment_payload)
     logger.info("Checkout concluído com sucesso. order_id=%s payment_id=%s source=%s", order["id"], payment_id, normalized["source"])
-    return get_order(order["id"])
+    return get_order(company_id, order["id"])
 
 
-def list_orders(limit=None, source=None, status=None, payment_status=None, shipping_status=None, customer_phone=None):
-    query = "SELECT * FROM orders WHERE 1=1"
-    params = []
-
+def list_orders(company_id, limit=None, source=None, status=None, payment_status=None, shipping_status=None, customer_phone=None):
+    query = "SELECT * FROM orders WHERE company_id = ?"
+    params = [int(company_id)]
+    
     if source:
         query += " AND source = ?"
         params.append(source)
@@ -565,9 +576,9 @@ def list_orders(limit=None, source=None, status=None, payment_status=None, shipp
     return [Order.from_row(row) for row in rows]
 
 
-def get_order(order_id):
+def get_order(company_id, order_id):
     with get_connection() as conn:
-        order_row = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+        order_row = conn.execute("SELECT * FROM orders WHERE company_id = ? AND id = ?", (int(company_id), order_id)).fetchone()
         if not order_row:
             return None
 
@@ -576,10 +587,10 @@ def get_order(order_id):
             SELECT oi.*, p.name as product_name, p.sku as product_sku
             FROM order_items oi
             JOIN products p ON p.id = oi.product_id
-            WHERE oi.order_id = ?
+            WHERE oi.company_id = ? AND oi.order_id = ?
             ORDER BY oi.id ASC
             """,
-            (order_id,),
+            (int(company_id), order_id),
         ).fetchall()
 
     order = Order.from_row(order_row).to_dict()
@@ -598,47 +609,49 @@ def get_order(order_id):
     return order
 
 
-def update_order_status(order_id, status):
+def update_order_status(company_id, order_id, status):
     if status not in ORDER_STATUSES:
         raise ValueError("Status inválido")
 
     with get_connection() as conn:
         cursor = conn.execute(
-            "UPDATE orders SET status = ? WHERE id = ?",
-            (status, order_id),
+            "UPDATE orders SET status = ? WHERE company_id = ? AND id = ?",
+            (status, int(company_id), order_id),
         )
         conn.commit()
 
     if cursor.rowcount == 0:
         return None
 
-    return get_order(order_id)
+    return get_order(company_id, order_id)
 
 
-def list_low_stock_products(limit=20):
+def list_low_stock_products(company_id, limit=20):
     with get_connection() as conn:
         rows = conn.execute(
             """
             SELECT * FROM products
-            WHERE is_active = 1 AND stock <= ?
+            WHERE company_id = ? AND is_active = 1 AND stock <= ?
             ORDER BY stock ASC, name ASC
             LIMIT ?
             """,
-            (LOW_STOCK_LIMIT, int(limit)),
+            (int(company_id), LOW_STOCK_LIMIT, int(limit)),
         ).fetchall()
 
     return [Product.from_row(row) for row in rows]
 
 
-def get_product_channel_mappings():
+def get_product_channel_mappings(company_id):
     with get_connection() as conn:
         rows = conn.execute(
             """
             SELECT pc.*, p.name as product_name, p.sku as product_sku
             FROM product_channels pc
             JOIN products p ON p.id = pc.product_id
+            WHERE pc.company_id = ?
             ORDER BY pc.created_at DESC, pc.id DESC
-            """
+            """,
+            (int(company_id),),
         ).fetchall()
 
     return [
@@ -657,7 +670,7 @@ def get_product_channel_mappings():
     ]
 
 
-def save_product_channel_mapping(product_id, channel_name, external_product_id, external_sku="", is_active=True):
+def save_product_channel_mapping(company_id, product_id, channel_name, external_product_id, external_sku="", is_active=True):
     channel = (channel_name or "").strip().lower()
     external_id = (external_product_id or "").strip()
     if not channel or not external_id:
@@ -668,6 +681,7 @@ def save_product_channel_mapping(product_id, channel_name, external_product_id, 
             """
             INSERT OR REPLACE INTO product_channels (
                 id,
+                company_id,
                 product_id,
                 channel_name,
                 external_product_id,
@@ -678,23 +692,26 @@ def save_product_channel_mapping(product_id, channel_name, external_product_id, 
             VALUES (
                 (
                     SELECT id FROM product_channels
-                    WHERE product_id = ? AND channel_name = ? AND external_product_id = ?
+                    WHERE company_id = ? AND product_id = ? AND channel_name = ? AND external_product_id = ?
                 ),
-                ?, ?, ?, ?, ?, COALESCE((
+                ?, ?, ?, ?, ?, ?, COALESCE((
                     SELECT created_at FROM product_channels
-                    WHERE product_id = ? AND channel_name = ? AND external_product_id = ?
+                    WHERE company_id = ? AND product_id = ? AND channel_name = ? AND external_product_id = ?
                 ), CURRENT_TIMESTAMP)
             )
             """,
             (
+                int(company_id),
                 int(product_id),
                 channel,
                 external_id,
+                int(company_id),
                 int(product_id),
                 channel,
                 external_id,
                 (external_sku or "").strip(),
                 1 if is_active else 0,
+                int(company_id),
                 int(product_id),
                 channel,
                 external_id,
@@ -703,48 +720,55 @@ def save_product_channel_mapping(product_id, channel_name, external_product_id, 
         conn.commit()
 
 
-def get_dashboard_data():
+def get_dashboard_data(company_id):
     with get_connection() as conn:
         sales_today = conn.execute(
-            "SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as revenue FROM orders WHERE DATE(created_at) = DATE('now')"
-        ).fetchone()
+            "SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as revenue FROM orders WHERE company_id = ? AND DATE(created_at) = DATE('now')"
+        , (int(company_id),)).fetchone()
         sales_total = conn.execute(
-            "SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as revenue FROM orders"
+            "SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as revenue FROM orders WHERE company_id = ?",
+            (int(company_id),),
         ).fetchone()
         cost_row = conn.execute(
             """
             SELECT COALESCE(SUM(oi.quantity * p.cost), 0) as total_cost
             FROM order_items oi
             JOIN products p ON p.id = oi.product_id
-            """
+            WHERE oi.company_id = ?
+            """,
+            (int(company_id),),
         ).fetchone()
-        products_sold_row = conn.execute("SELECT COALESCE(SUM(quantity), 0) as qty FROM order_items").fetchone()
+        products_sold_row = conn.execute("SELECT COALESCE(SUM(quantity), 0) as qty FROM order_items WHERE company_id = ?", (int(company_id),)).fetchone()
 
         best_sellers_rows = conn.execute(
             """
             SELECT p.name, SUM(oi.quantity) as sold
             FROM order_items oi
             JOIN products p ON p.id = oi.product_id
+            WHERE oi.company_id = ?
             GROUP BY oi.product_id
             ORDER BY sold DESC
             LIMIT 5
-            """
+            """,
+            (int(company_id),),
         ).fetchall()
 
-        pending_orders = conn.execute("SELECT COUNT(*) as total FROM orders WHERE status = 'pending'").fetchone()["total"]
-        ready_orders = conn.execute("SELECT COUNT(*) as total FROM orders WHERE status = 'ready_to_ship'").fetchone()["total"]
-        out_of_stock = conn.execute("SELECT COUNT(*) as total FROM products WHERE is_active = 1 AND stock = 0").fetchone()["total"]
+        pending_orders = conn.execute("SELECT COUNT(*) as total FROM orders WHERE company_id = ? AND status = 'pending'", (int(company_id),)).fetchone()["total"]
+        ready_orders = conn.execute("SELECT COUNT(*) as total FROM orders WHERE company_id = ? AND status = 'ready_to_ship'", (int(company_id),)).fetchone()["total"]
+        out_of_stock = conn.execute("SELECT COUNT(*) as total FROM products WHERE company_id = ? AND is_active = 1 AND stock = 0",(int(company_id),)).fetchone()["total"]
 
         source_rows = conn.execute(
             """
             SELECT source, COUNT(*) as orders_count, COALESCE(SUM(total), 0) as revenue
             FROM orders
+            WHERE company_id = ?
             GROUP BY source
             ORDER BY orders_count DESC
-            """
+            """,
+            (int(company_id),),
         ).fetchall()
 
-        recent = conn.execute("SELECT * FROM orders ORDER BY created_at DESC, id DESC LIMIT 5").fetchall()
+        recent = conn.execute("SELECT * FROM orders WHERE company_id = ? ORDER BY created_at DESC, id DESC LIMIT 5", (int(company_id),)).fetchall()
 
     total_revenue = float(sales_total["revenue"])
     total_cost = float(cost_row["total_cost"])
@@ -760,7 +784,7 @@ def get_dashboard_data():
         "estimated_profit": total_revenue - total_cost,
         "products_sold": int(products_sold_row["qty"]),
         "best_sellers": [{"name": row["name"], "sold": int(row["sold"])} for row in best_sellers_rows],
-        "low_stock_products": [product.to_dict() for product in list_low_stock_products(limit=50)],
+        "low_stock_products": [product.to_dict() for product in list_low_stock_products(company_id, limit=50)],
         "out_of_stock_products": int(out_of_stock),
         "pending_orders": int(pending_orders),
         "ready_to_ship_orders": int(ready_orders),
@@ -774,16 +798,18 @@ def get_dashboard_data():
     }
 
 
-def get_sold_products():
+def get_sold_products(company_id):
     with get_connection() as conn:
         rows = conn.execute(
             """
             SELECT p.id, p.name, SUM(oi.quantity) as quantity, SUM(oi.quantity * oi.price) as revenue
             FROM order_items oi
             JOIN products p ON p.id = oi.product_id
+            WHERE oi.company_id = ?
             GROUP BY p.id, p.name
             ORDER BY quantity DESC
-            """
+            """,
+            (int(company_id),),
         ).fetchall()
 
     return [
