@@ -1,38 +1,70 @@
-const CATALOGO_PRODUTOS = [
+const PRODUTOS_FALLBACK = [
   {
     id: 1,
-    nome: "Base Líquida Glow",
-    preco: 59.9,
-    imagem: "images/base-glow.svg"
+    name: "Base Líquida Glow",
+    category: "Base",
+    description: "Base líquida com acabamento iluminado.",
+    price: 59.9,
+    cost: 25,
+    stock: 10,
+    image_url: "images/base-glow.svg",
+    is_active: true
   },
   {
     id: 2,
-    nome: "Paleta Aurora 12 Cores",
-    preco: 89.9,
-    imagem: "images/paleta-aurora.svg"
+    name: "Paleta Aurora 12 Cores",
+    category: "Olhos",
+    description: "Paleta com 12 tons versáteis para maquiagem.",
+    price: 89.9,
+    cost: 40,
+    stock: 8,
+    image_url: "images/paleta-aurora.svg",
+    is_active: true
   },
   {
     id: 3,
-    nome: "Batom Matte Rosé",
-    preco: 34.9,
-    imagem: "images/batom-rose.svg"
+    name: "Batom Matte Rosé",
+    category: "Lábios",
+    description: "Batom matte de longa duração.",
+    price: 34.9,
+    cost: 15,
+    stock: 12,
+    image_url: "images/batom-rose.svg",
+    is_active: true
   },
   {
     id: 4,
-    nome: "Máscara de Cílios Volume",
-    preco: 42.9,
-    imagem: "images/mascara-cilios.svg"
+    name: "Máscara de Cílios Volume",
+    category: "Olhos",
+    description: "Máscara para volume intenso.",
+    price: 42.9,
+    cost: 19,
+    stock: 14,
+    image_url: "images/mascara-cilios.svg",
+    is_active: true
   },
   {
     id: 5,
-    nome: "Iluminador Crystal",
-    preco: 39.9,
-    imagem: "images/iluminador.svg"
+    name: "Iluminador Crystal",
+    category: "Face",
+    description: "Iluminador com brilho natural.",
+    price: 39.9,
+    cost: 17,
+    stock: 11,
+    image_url: "images/iluminador.svg",
+    is_active: true
   },
   {
     id: 6,
-    nome: "Blush Peach Shine",
-    preco: 36.9,
-    imagem: "images/blush-peach.svg"
+    name: "Blush Peach Shine",
+    category: "Face",
+    description: "Blush com efeito glow saudável.",
+    price: 36.9,
+    cost: 16,
+    stock: 9,
+    image_url: "images/blush-peach.svg",
+    is_active: true
   }
 ];
+
+window.PRODUTOS_FALLBACK = PRODUTOS_FALLBACK;

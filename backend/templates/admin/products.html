@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin | Produtos</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .admin-grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 20px; }
+    .admin-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+    .admin-form { display: grid; gap: 10px; }
+    .admin-form input, .admin-form textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 10px; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid var(--border); padding: 8px; text-align: left; }
+    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn.secondary { background: #2f2230; }
+  </style>
+</head>
+<body>
+  <header class="topo">
+    <div class="container nav-wrapper">
+      <a href="/" class="logo">Aurora <span>Makes</span></a>
+      <nav class="menu">
+        <a href="/admin/products" class="active">Produtos</a>
+        <a href="/admin/stock">Estoque</a>
+        <a href="/produtos.html">Loja</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container section">
+    <h1 class="section-title">Administração de Produtos</h1>
+    <div class="admin-grid">
+      <section class="admin-card">
+        <h2>{{ 'Editar produto' if product_to_edit else 'Novo produto' }}</h2>
+        <form class="admin-form" method="post" action="{{ url_for('admin.admin_update_product', product_id=product_to_edit.id) if product_to_edit else url_for('admin.admin_create_product') }}">
+          <input name="name" placeholder="Nome" value="{{ product_to_edit.name if product_to_edit else '' }}" required>
+          <input name="category" placeholder="Categoria" value="{{ product_to_edit.category if product_to_edit else '' }}" required>
+          <textarea name="description" placeholder="Descrição">{{ product_to_edit.description if product_to_edit else '' }}</textarea>
+          <input type="number" step="0.01" min="0" name="price" placeholder="Preço" value="{{ product_to_edit.price if product_to_edit else '' }}" required>
+          <input type="number" step="0.01" min="0" name="cost" placeholder="Custo" value="{{ product_to_edit.cost if product_to_edit else '' }}" required>
+          <input type="number" min="0" name="stock" placeholder="Estoque" value="{{ product_to_edit.stock if product_to_edit else '0' }}" required>
+          <input name="image_url" placeholder="URL ou caminho da imagem" value="{{ product_to_edit.image_url if product_to_edit else '' }}">
+          <label><input type="checkbox" name="is_active" {% if not product_to_edit or product_to_edit.is_active %}checked{% endif %}> Produto ativo</label>
+          <button class="btn" type="submit">{{ 'Salvar alterações' if product_to_edit else 'Cadastrar produto' }}</button>
+        </form>
+      </section>
+
+      <section class="admin-card table-wrap">
+        <h2>Produtos cadastrados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nome</th>
+              <th>Preço</th>
+              <th>Estoque</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for product in products %}
+              <tr>
+                <td>{{ product.id }}</td>
+                <td>{{ product.name }}</td>
+                <td>R$ {{ '%.2f'|format(product.price) }}</td>
+                <td>{{ product.stock }}</td>
+                <td>{{ 'Ativo' if product.is_active else 'Inativo' }}</td>
+                <td class="actions">
+                  <a class="btn secondary" href="{{ url_for('admin.admin_products', edit=product.id) }}">Editar</a>
+                  <form method="post" action="{{ url_for('admin.admin_toggle_product', product_id=product.id) }}">
+                    <input type="hidden" name="is_active" value="{{ 'false' if product.is_active else 'true' }}">
+                    <button class="btn" type="submit">{{ 'Desativar' if product.is_active else 'Ativar' }}</button>
+                  </form>
+                  <form method="post" action="{{ url_for('admin.admin_delete_product', product_id=product.id) }}" onsubmit="return confirm('Excluir produto?')">
+                    <button class="btn" type="submit">Excluir</button>
+                  </form>
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="6">Nenhum produto cadastrado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
