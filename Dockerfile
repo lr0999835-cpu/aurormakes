@@ -12,4 +12,4 @@ COPY . .
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "gunicorn --chdir backend --bind 0.0.0.0:${PORT:-8080} app:create_app()"]
+CMD ["sh", "-c", "gunicorn main:app --bind 0.0.0.0:${PORT:-8080}"]
