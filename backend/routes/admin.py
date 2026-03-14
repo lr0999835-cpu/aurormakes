@@ -1,6 +1,6 @@
 import sqlite3
 
-from flask import Blueprint, abort, flash, g, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, flash, g, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import generate_password_hash
 
 from auth import (
@@ -72,16 +72,23 @@ def admin_login():
 
 @admin_bp.post("/login")
 def admin_login_post():
-    company = (request.form.get("company") or "").strip().lower()
-    login = (request.form.get("login") or "").strip()
-    password = request.form.get("password") or ""
+    payload = request.get_json(silent=True) if request.is_json else {}
+    company = ((payload or {}).get("company") or request.form.get("company") or "").strip().lower()
+    email = ((payload or {}).get("email") or request.form.get("email") or "").strip()
+    password = ((payload or {}).get("password") or request.form.get("password") or "")
 
-    if not company or not login or not password:
-        flash("Preencha empresa, usuário/e-mail e senha.", "error")
+    wants_json = request.is_json or "application/json" in (request.headers.get("Accept") or "")
+
+    if not company or not email or not password:
+        if wants_json:
+            return {"ok": False, "error": "Preencha empresa, e-mail e senha."}, 400
+        flash("Preencha empresa, e-mail e senha.", "error")
         return render_template("admin/login.html"), 400
 
-    user, error = authenticate_user(company, login, password)
+    user, error = authenticate_user(company, email, password)
     if error:
+        if wants_json:
+            return {"ok": False, "error": error}, 401
         flash(error, "error")
         return render_template("admin/login.html"), 401
 
@@ -91,6 +98,20 @@ def admin_login_post():
     with get_connection() as conn:
         conn.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user["id"],))
         conn.commit()
+
+    if wants_json:
+        return jsonify(
+            {
+                "ok": True,
+                "user": {
+                    "id": user["id"],
+                    "company_id": user["company_id"],
+                    "company": user["company_slug"],
+                    "email": user["email"],
+                    "permission_level": user["permission_level"],
+                },
+            }
+        )
 
     next_url = request.args.get("next") or request.form.get("next")
     if next_url and next_url.startswith("/admin"):

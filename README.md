@@ -114,6 +114,16 @@ Esses serviços servem como base para:
 - `operator`
 - `viewer`
 
+
+### Credenciais administrativas padrão
+Após subir a aplicação (ou executar o bootstrap), estas credenciais são garantidas no banco:
+- `company`: `aurora-makes`
+- `email`: `admin@auroramakes.com`
+- `password`: `admin123`
+- `permission`: `super_admin`
+
+> Observação: se o usuário já existir, a senha é resetada para `admin123` durante `init_db`.
+
 ### Seed / bootstrap
 Na inicialização (`init_db`) o sistema cria automaticamente:
 - empresa padrão `Aurora Makes` (`slug=aurora-makes`)
@@ -134,3 +144,12 @@ Para preservar o hash existente (sem resetar senha), execute:
 ```bash
 python backend/scripts/bootstrap_super_admin.py --no-reset-password
 ```
+
+
+### Como criar novos usuários no futuro
+Use o painel em `/admin/usuarios` com um usuário que tenha permissão `users:write` (`company_admin` ou `super_admin`):
+1. Selecione a empresa (`company_id`) alvo.
+2. Informe `username`, `email`, `password` e `role`.
+3. O backend salva a senha com hash via `werkzeug.security.generate_password_hash`.
+
+Também é possível criar via SQL/seed preenchendo `users.company_id`, `users.email`, `users.role` e `users.password_hash` (nunca salvar senha em texto puro).

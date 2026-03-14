@@ -54,7 +54,7 @@ def can_manage_company(user, target_company_id):
     return int(user["company_id"]) == int(target_company_id)
 
 
-def authenticate_user(company_slug, login, password):
+def authenticate_user(company_slug, email, password):
     with get_connection() as conn:
         row = conn.execute(
             """
@@ -63,10 +63,10 @@ def authenticate_user(company_slug, login, password):
             FROM users u
             JOIN companies c ON c.id = u.company_id
             WHERE c.slug = ?
-              AND (LOWER(u.email) = LOWER(?) OR LOWER(u.username) = LOWER(?))
+              AND LOWER(u.email) = LOWER(?)
             LIMIT 1
             """,
-            (company_slug.strip().lower(), login.strip(), login.strip()),
+            (company_slug.strip().lower(), email.strip()),
         ).fetchone()
 
     if not row:
@@ -86,6 +86,7 @@ def authenticate_user(company_slug, login, password):
         "username": row["username"],
         "email": row["email"],
         "role": row["role"],
+        "permission_level": row["role"],
     }
     return user, None
 
