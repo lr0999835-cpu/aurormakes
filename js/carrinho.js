@@ -21,7 +21,11 @@ const CHECKOUT_STATE = {
   cardNumber: "",
   cardExpiry: "",
   cardCvv: "",
-  installments: "1"
+  installments: "1",
+  customerLoaded: false,
+  customerLoggedIn: false,
+  customerAddresses: [],
+  selectedAddressId: "new"
 };
 
 const SHIPPING_CATALOG = [
@@ -65,13 +69,24 @@ function formatShippingETA(option) {
   return `${option.minDays} a ${option.maxDays} dias úteis`;
 }
 
+function normalizeCep(value) {
+  return value.replace(/\D/g, "").slice(0, 8);
+}
+
+function formatCep(value) {
+  const digits = normalizeCep(value);
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
+
 function calculateShippingByCep() {
-  const cep = CHECKOUT_STATE.cep.replace(/\D/g, "");
+  const cep = normalizeCep(CHECKOUT_STATE.cep);
   if (cep.length !== 8) {
     alert("Informe um CEP válido com 8 números.");
     return;
   }
 
+  CHECKOUT_STATE.cep = formatCep(cep);
   const regionFactor = Number(cep[0] || 0);
   CHECKOUT_STATE.shippingOptions = SHIPPING_CATALOG.map((option) => ({
     ...option,
@@ -90,7 +105,12 @@ function moveToStep(nextStep) {
 }
 
 function handleCheckoutInput(field, value, type = "text") {
-  CHECKOUT_STATE[field] = type === "checkbox" ? Boolean(value) : value;
+  const normalized = type === "checkbox" ? Boolean(value) : value;
+  if (field === "cep") {
+    CHECKOUT_STATE[field] = formatCep(normalized);
+    return;
+  }
+  CHECKOUT_STATE[field] = normalized;
 }
 
 function handleShippingSelection(id) {
@@ -105,6 +125,50 @@ function handlePaymentSelection(paymentMethod) {
 
 function applyCoupon() {
   CHECKOUT_STATE.couponCode = (document.getElementById("coupon-input")?.value || "").trim();
+  renderCartPage();
+}
+
+function applyAddressData(address) {
+  if (!address) {
+    return;
+  }
+
+  CHECKOUT_STATE.cep = formatCep(address.cep || "");
+  CHECKOUT_STATE.address = address.endereco || "";
+  CHECKOUT_STATE.number = address.numero || "";
+  CHECKOUT_STATE.complement = address.complemento || "";
+  CHECKOUT_STATE.district = address.bairro || "";
+  CHECKOUT_STATE.city = address.cidade || "";
+  CHECKOUT_STATE.state = (address.estado || "").toUpperCase();
+  CHECKOUT_STATE.reference = address.referencia || "";
+}
+
+function handleAddressSelection(addressId) {
+  CHECKOUT_STATE.selectedAddressId = addressId;
+  if (addressId === "new") {
+    CHECKOUT_STATE.address = "";
+    CHECKOUT_STATE.number = "";
+    CHECKOUT_STATE.complement = "";
+    CHECKOUT_STATE.district = "";
+    CHECKOUT_STATE.city = "";
+    CHECKOUT_STATE.state = "";
+    CHECKOUT_STATE.reference = "";
+    CHECKOUT_STATE.cep = "";
+    CHECKOUT_STATE.shippingOptions = [];
+    CHECKOUT_STATE.selectedShippingId = "";
+    renderCartPage();
+    return;
+  }
+
+  const selected = CHECKOUT_STATE.customerAddresses.find((address) => String(address.id) === String(addressId));
+  if (!selected) {
+    renderCartPage();
+    return;
+  }
+
+  applyAddressData(selected);
+  CHECKOUT_STATE.shippingOptions = [];
+  CHECKOUT_STATE.selectedShippingId = "";
   renderCartPage();
 }
 
@@ -128,17 +192,20 @@ function validateBeforeStep(step) {
       return false;
     }
   }
+
   if (step >= 3) {
     const hasAddress = CHECKOUT_STATE.cep && CHECKOUT_STATE.address && CHECKOUT_STATE.number && CHECKOUT_STATE.district && CHECKOUT_STATE.city && CHECKOUT_STATE.state;
     if (!hasAddress) {
       alert("Preencha os dados de entrega para avançar ao pagamento.");
       return false;
     }
+
     if (!CHECKOUT_STATE.selectedShippingId) {
       alert("Selecione um método de frete.");
       return false;
     }
   }
+
   return true;
 }
 
@@ -172,6 +239,7 @@ async function createOrderFromCart() {
   const payload = {
     customer_name: CHECKOUT_STATE.fullName.trim(),
     customer_phone: CHECKOUT_STATE.phone.trim(),
+    customer_email: CHECKOUT_STATE.email.trim(),
     customer_address: formatAddressPayload(),
     source: "aurora_makes",
     payment_method: CHECKOUT_STATE.paymentMethod,
@@ -179,28 +247,42 @@ async function createOrderFromCart() {
     shipping_amount: shipping,
     discount_amount: discount,
     shipping_method: selectedShipping?.label || "",
-    items: detailedCart.map((item) => ({ product_id: item.id, quantity: item.quantidade }))
+    items: detailedCart.map((item) => ({
+      product_id: item.id,
+      quantity: item.quantidade
+    }))
   };
+
+  if (CHECKOUT_STATE.paymentMethod === "cartao") {
+    payload.card = {
+      holder_name: CHECKOUT_STATE.cardName.trim(),
+      number: CHECKOUT_STATE.cardNumber.replace(/\s/g, ""),
+      expiry: CHECKOUT_STATE.cardExpiry,
+      cvv: CHECKOUT_STATE.cardCvv,
+      installments: Number(CHECKOUT_STATE.installments || "1")
+    };
+  }
 
   const response = await fetch("/api/checkout", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Device-Type": window.matchMedia("(max-width: 768px)").matches ? "mobile" : "desktop" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
 
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Erro ao criar pedido");
+  if (!response.ok) {
+    throw new Error(data?.error || "Não foi possível finalizar o pedido");
+  }
 
-  saveCart([]);
-  updateCartCount();
-  renderCartPage();
   return data;
 }
 
 async function checkoutNow() {
   try {
     const order = await createOrderFromCart();
-    alert(buildPaymentInstructions(order));
+    saveCart([]);
+    updateCartCount();
+    renderCartPage();
     const instructions = document.getElementById("checkout-instructions");
     if (instructions) instructions.textContent = buildPaymentInstructions(order);
   } catch (error) {
@@ -234,6 +316,22 @@ function renderShippingOptions() {
   `).join("")}</div>`;
 }
 
+function renderCustomerAddressSelector() {
+  if (!CHECKOUT_STATE.customerLoggedIn || !CHECKOUT_STATE.customerAddresses.length) {
+    return "";
+  }
+
+  return `
+    <div class="saved-address-box">
+      <p>Endereços salvos</p>
+      <select onchange="handleAddressSelection(this.value)">
+        ${CHECKOUT_STATE.customerAddresses.map((address) => `<option value="${address.id}" ${String(CHECKOUT_STATE.selectedAddressId) === String(address.id) ? "selected" : ""}>${address.endereco}, ${address.numero} · ${address.bairro}</option>`).join("")}
+        <option value="new" ${CHECKOUT_STATE.selectedAddressId === "new" ? "selected" : ""}>Cadastrar novo endereço</option>
+      </select>
+    </div>
+  `;
+}
+
 function renderPaymentPanel() {
   const optionCard = (method, title, description) => `
     <label class="payment-option ${CHECKOUT_STATE.paymentMethod === method ? "selected" : ""}">
@@ -258,7 +356,7 @@ function renderPaymentPanel() {
         <label>CVV<input value="${CHECKOUT_STATE.cardCvv}" maxlength="4" oninput="handleCheckoutInput('cardCvv', this.value)"></label>
         <label>Parcelas
           <select onchange="handleCheckoutInput('installments', this.value)">
-            ${[1,2,3,4,5,6].map((installment) => `<option value="${installment}" ${CHECKOUT_STATE.installments === String(installment) ? "selected" : ""}>${installment}x ${installment === 1 ? "sem juros" : "no cartão"}</option>`).join("")}
+            ${[1, 2, 3, 4, 5, 6].map((installment) => `<option value="${installment}" ${CHECKOUT_STATE.installments === String(installment) ? "selected" : ""}>${installment}x ${installment === 1 ? "sem juros" : "no cartão"}</option>`).join("")}
           </select>
         </label>
       </div>`;
@@ -272,6 +370,90 @@ function renderPaymentPanel() {
     optionCard("cartao", "Cartão de crédito", "Parcele em até 6x") +
     optionCard("boleto", "Boleto bancário", "Pagamento à vista")
   }</div>${dynamicPanel}</section>`;
+}
+
+function renderStepContent(detailedCart, totals) {
+  const step = CHECKOUT_STATE.step;
+
+  if (step === 1) {
+    return `
+      <div class="checkout-card cart-panel">
+        <h3>Seu carrinho</h3>
+        <div class="cart-list">${detailedCart.map((item) => `
+          <article class="cart-item">
+            <img src="${item.imagem}" alt="${item.nome}">
+            <div class="cart-item-body">
+              <h4>${item.nome}</h4>
+              <p class="unit-price">${formatPrice(item.preco)} por unidade</p>
+              <div class="cart-item-controls">
+                <button class="qty-btn" type="button" onclick="decreaseCartQuantity(${item.id})">−</button>
+                <span>${item.quantidade}</span>
+                <button class="qty-btn" type="button" onclick="increaseCartQuantity(${item.id})">+</button>
+                <button class="remove-btn" type="button" onclick="removeFromCart(${item.id})">Remover</button>
+              </div>
+            </div>
+            <strong>${formatPrice(item.subtotal)}</strong>
+          </article>`).join("")}
+        </div>
+        <div class="totals-inline">
+          <div><span>Subtotal</span><strong>${formatPrice(totals.subtotal)}</strong></div>
+          <div><span>Frete</span><strong>${totals.shipping ? formatPrice(totals.shipping) : "A calcular"}</strong></div>
+          <div><span>Desconto</span><strong>− ${formatPrice(totals.discount)}</strong></div>
+          <div class="total"><span>Total</span><strong>${formatPrice(totals.total)}</strong></div>
+        </div>
+        <div class="checkout-actions">
+          <button class="checkout-btn" type="button" onclick="if (validateBeforeStep(2)) moveToStep(2)">Iniciar compra</button>
+        </div>
+      </div>`;
+  }
+
+  if (step === 2) {
+    return `
+      <section class="checkout-card">
+        <h3>Dados do cliente</h3>
+        ${CHECKOUT_STATE.customerLoggedIn ? '<p class="checkout-hint">Dados preenchidos com sua conta. Você pode editar antes de continuar.</p>' : '<p class="checkout-hint">Preencha seus dados para avançar para pagamento.</p>'}
+        <div class="grid-2">
+          <label>Nome completo<input value="${CHECKOUT_STATE.fullName}" oninput="handleCheckoutInput('fullName', this.value)"></label>
+          <label>E-mail<input type="email" value="${CHECKOUT_STATE.email}" oninput="handleCheckoutInput('email', this.value)"></label>
+          <label>Telefone<input value="${CHECKOUT_STATE.phone}" oninput="handleCheckoutInput('phone', this.value)"></label>
+        </div>
+        <label class="checkbox-line"><input type="checkbox" ${CHECKOUT_STATE.receiveNews ? "checked" : ""} onchange="handleCheckoutInput('receiveNews', this.checked, 'checkbox')">Receber ofertas e novidades por e-mail</label>
+      </section>
+
+      <section class="checkout-card">
+        <h3>Entrega</h3>
+        ${renderCustomerAddressSelector()}
+        <div class="grid-2">
+          <label>CEP<input value="${CHECKOUT_STATE.cep}" maxlength="9" placeholder="00000-000" oninput="handleCheckoutInput('cep', this.value)"></label>
+          <div class="checkout-inline-actions">
+            <button class="checkout-btn-outline" type="button" onclick="calculateShippingByCep()">Calcular frete</button>
+            <a href="https://buscacepinter.correios.com.br/app/endereco/index.php" target="_blank" rel="noreferrer">Não sei meu CEP</a>
+          </div>
+          <label>Endereço<input value="${CHECKOUT_STATE.address}" oninput="handleCheckoutInput('address', this.value)"></label>
+          <label>Número<input value="${CHECKOUT_STATE.number}" oninput="handleCheckoutInput('number', this.value)"></label>
+          <label>Complemento<input value="${CHECKOUT_STATE.complement}" oninput="handleCheckoutInput('complement', this.value)"></label>
+          <label>Bairro<input value="${CHECKOUT_STATE.district}" oninput="handleCheckoutInput('district', this.value)"></label>
+          <label>Cidade<input value="${CHECKOUT_STATE.city}" oninput="handleCheckoutInput('city', this.value)"></label>
+          <label>Estado<input value="${CHECKOUT_STATE.state}" maxlength="2" oninput="handleCheckoutInput('state', this.value.toUpperCase())"></label>
+          <label class="full-width">Referência<input value="${CHECKOUT_STATE.reference}" oninput="handleCheckoutInput('reference', this.value)"></label>
+        </div>
+        <h4>Métodos de envio</h4>
+        ${renderShippingOptions()}
+        <div class="checkout-actions">
+          <button class="checkout-btn-outline" type="button" onclick="moveToStep(1)">Voltar</button>
+          <button class="checkout-btn-primary" type="button" onclick="if (validateBeforeStep(3)) moveToStep(3)">Continuar</button>
+        </div>
+      </section>`;
+  }
+
+  return `
+    ${renderPaymentPanel()}
+    <div class="checkout-actions">
+      <button class="checkout-btn-outline" type="button" onclick="moveToStep(2)">Voltar</button>
+      <button class="checkout-btn" type="button" onclick="checkoutNow()">Confirmar pedido e pagar</button>
+    </div>
+    <pre id="checkout-instructions" class="checkout-response"></pre>
+  `;
 }
 
 function renderCartPage() {
@@ -291,70 +473,7 @@ function renderCartPage() {
     ${renderStepIndicator()}
     <div class="checkout-layout">
       <section class="checkout-main">
-        <div class="checkout-card cart-panel">
-          <h3>Carrinho</h3>
-          <div class="cart-list">${detailedCart.map((item) => `
-            <article class="cart-item">
-              <img src="${item.imagem}" alt="${item.nome}">
-              <div class="cart-item-body">
-                <h4>${item.nome}</h4>
-                <p class="unit-price">${formatPrice(item.preco)} por unidade</p>
-                <div class="cart-item-controls">
-                  <button class="qty-btn" type="button" onclick="decreaseCartQuantity(${item.id})">−</button>
-                  <span>${item.quantidade}</span>
-                  <button class="qty-btn" type="button" onclick="increaseCartQuantity(${item.id})">+</button>
-                  <button class="remove-btn" type="button" onclick="removeFromCart(${item.id})">Remover</button>
-                </div>
-              </div>
-              <strong>${formatPrice(item.subtotal)}</strong>
-            </article>`).join("")}
-          </div>
-          <div class="checkout-actions">
-            <button class="checkout-btn-outline" type="button" onclick="if (validateBeforeStep(2)) moveToStep(2)">Iniciar compra</button>
-          </div>
-        </div>
-
-        <section class="checkout-card">
-          <h3>Contato</h3>
-          <div class="grid-2">
-            <label>E-mail<input type="email" value="${CHECKOUT_STATE.email}" oninput="handleCheckoutInput('email', this.value)"></label>
-            <label>Nome completo<input value="${CHECKOUT_STATE.fullName}" oninput="handleCheckoutInput('fullName', this.value)"></label>
-            <label>Telefone<input value="${CHECKOUT_STATE.phone}" oninput="handleCheckoutInput('phone', this.value)"></label>
-          </div>
-          <label class="checkbox-line"><input type="checkbox" ${CHECKOUT_STATE.receiveNews ? "checked" : ""} onchange="handleCheckoutInput('receiveNews', this.checked, 'checkbox')">Receber ofertas e novidades por e-mail</label>
-        </section>
-
-        <section class="checkout-card">
-          <h3>Entrega</h3>
-          <div class="grid-2">
-            <label>CEP<input value="${CHECKOUT_STATE.cep}" maxlength="9" placeholder="00000-000" oninput="handleCheckoutInput('cep', this.value)"></label>
-            <div class="checkout-inline-actions">
-              <button class="checkout-btn-outline" type="button" onclick="calculateShippingByCep()">Calcular frete</button>
-              <a href="https://buscacepinter.correios.com.br/app/endereco/index.php" target="_blank" rel="noreferrer">Não sei meu CEP</a>
-            </div>
-            <label>Endereço<input value="${CHECKOUT_STATE.address}" oninput="handleCheckoutInput('address', this.value)"></label>
-            <label>Número<input value="${CHECKOUT_STATE.number}" oninput="handleCheckoutInput('number', this.value)"></label>
-            <label>Complemento<input value="${CHECKOUT_STATE.complement}" oninput="handleCheckoutInput('complement', this.value)"></label>
-            <label>Bairro<input value="${CHECKOUT_STATE.district}" oninput="handleCheckoutInput('district', this.value)"></label>
-            <label>Cidade<input value="${CHECKOUT_STATE.city}" oninput="handleCheckoutInput('city', this.value)"></label>
-            <label>Estado<input value="${CHECKOUT_STATE.state}" maxlength="2" oninput="handleCheckoutInput('state', this.value.toUpperCase())"></label>
-            <label class="full-width">Referência (opcional)<input value="${CHECKOUT_STATE.reference}" oninput="handleCheckoutInput('reference', this.value)"></label>
-          </div>
-          <h4>Métodos de envio</h4>
-          ${renderShippingOptions()}
-          <div class="checkout-actions">
-            <button class="checkout-btn-outline" type="button" onclick="moveToStep(1)">Voltar</button>
-            <button class="checkout-btn-primary" type="button" onclick="if (validateBeforeStep(3)) moveToStep(3)">Continuar</button>
-          </div>
-        </section>
-
-        ${renderPaymentPanel()}
-
-        <div class="checkout-actions">
-          <button class="checkout-btn-outline" type="button" onclick="moveToStep(2)">Voltar</button>
-          <button class="checkout-btn" type="button" onclick="checkoutNow()">Confirmar pedido e pagar</button>
-        </div>
-        <pre id="checkout-instructions" class="checkout-response"></pre>
+        ${renderStepContent(detailedCart, totals)}
       </section>
 
       <aside class="checkout-summary">
@@ -369,7 +488,7 @@ function renderCartPage() {
           </label>
           <dl class="summary-totals">
             <div><dt>Subtotal</dt><dd>${formatPrice(totals.subtotal)}</dd></div>
-            <div><dt>Frete</dt><dd>${formatPrice(totals.shipping)}</dd></div>
+            <div><dt>Frete</dt><dd>${totals.shipping ? formatPrice(totals.shipping) : "A calcular"}</dd></div>
             <div><dt>Desconto</dt><dd>− ${formatPrice(totals.discount)}</dd></div>
             <div class="total"><dt>Total</dt><dd>${formatPrice(totals.total)}</dd></div>
           </dl>
@@ -378,6 +497,49 @@ function renderCartPage() {
       </aside>
     </div>
   `;
+}
+
+async function preloadCustomerData() {
+  try {
+    const sessionResponse = await fetch("/api/customer/session");
+    if (!sessionResponse.ok) {
+      CHECKOUT_STATE.customerLoaded = true;
+      return;
+    }
+
+    const session = await sessionResponse.json();
+    CHECKOUT_STATE.customerLoggedIn = Boolean(session.authenticated);
+
+    if (!CHECKOUT_STATE.customerLoggedIn) {
+      CHECKOUT_STATE.customerLoaded = true;
+      return;
+    }
+
+    const accountResponse = await fetch("/api/customer/account");
+    if (accountResponse.ok) {
+      const account = await accountResponse.json();
+      CHECKOUT_STATE.fullName = account.nome_completo || CHECKOUT_STATE.fullName;
+      CHECKOUT_STATE.email = account.email || CHECKOUT_STATE.email;
+      CHECKOUT_STATE.phone = account.telefone || CHECKOUT_STATE.phone;
+      CHECKOUT_STATE.receiveNews = Boolean(account.aceita_marketing);
+    }
+
+    const addressesResponse = await fetch("/api/customer/addresses");
+    if (addressesResponse.ok) {
+      const addresses = await addressesResponse.json();
+      CHECKOUT_STATE.customerAddresses = Array.isArray(addresses) ? addresses : [];
+      if (CHECKOUT_STATE.customerAddresses.length) {
+        const defaultAddress = CHECKOUT_STATE.customerAddresses.find((address) => Boolean(address.is_default)) || CHECKOUT_STATE.customerAddresses[0];
+        CHECKOUT_STATE.selectedAddressId = String(defaultAddress.id);
+        applyAddressData(defaultAddress);
+      }
+    }
+  } catch (error) {
+    console.warn("Não foi possível pré-carregar dados da conta:", error);
+  } finally {
+    CHECKOUT_STATE.customerLoaded = true;
+    renderCartPage();
+  }
 }
 
 window.renderCartPage = renderCartPage;
@@ -391,3 +553,8 @@ window.handleCheckoutInput = handleCheckoutInput;
 window.handleShippingSelection = handleShippingSelection;
 window.handlePaymentSelection = handlePaymentSelection;
 window.applyCoupon = applyCoupon;
+window.handleAddressSelection = handleAddressSelection;
+
+document.addEventListener("DOMContentLoaded", () => {
+  preloadCustomerData();
+});
