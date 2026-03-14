@@ -1,0 +1,15 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 700'>
+<rect width='1600' height='700' fill='#e8dff0'/>
+<text x='130' y='125' font-size='88' font-family='cursive' fill='white'>Conheça os</text>
+<rect x='70' y='170' width='520' height='62' fill='#b791c7'/>
+<text x='95' y='214' font-size='56' font-family='Arial' font-weight='700' fill='white'>ESFOLIANTES PORÁN</text>
+<text x='190' y='330' font-size='72' font-family='Arial' font-weight='700' fill='#7d5895'>O segredo</text>
+<text x='180' y='420' font-size='68' font-family='Arial' fill='#7d5895'>para uma pele</text>
+<text x='180' y='515' font-size='76' font-family='Arial' font-weight='700' fill='#7d5895'>sedosa &amp; macia!</text>
+<rect x='170' y='565' width='320' height='64' rx='32' fill='#b791c7'/>
+<text x='220' y='611' font-size='50' font-family='Arial' fill='white'>SAIBA MAIS</text>
+<rect x='620' y='0' width='220' height='700' rx='45' fill='#ef9c52'/>
+<rect x='850' y='0' width='220' height='700' rx='45' fill='#eb7469'/>
+<rect x='1080' y='0' width='220' height='700' rx='45' fill='#eca8a4'/>
+<rect x='1310' y='0' width='220' height='700' rx='45' fill='#c9659d'/>
+</svg>

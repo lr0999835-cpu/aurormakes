@@ -1,0 +1,14 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 700'>
+<rect width='1600' height='700' fill='#e6a8b5'/>
+<text x='170' y='210' font-size='96' font-family='Arial' font-weight='700' fill='white'>BODY</text>
+<text x='170' y='310' font-size='96' font-family='Arial' font-weight='700' fill='white'>SPLA</text>
+<text x='170' y='410' font-size='96' font-family='Arial' font-weight='700' fill='white'>SH</text>
+<text x='170' y='500' font-size='74' font-family='cursive' fill='#bb4569'>Rose Essence</text>
+<text x='1100' y='210' font-size='96' font-family='Arial' font-weight='700' fill='white'>ENCAN</text>
+<text x='1100' y='310' font-size='96' font-family='Arial' font-weight='700' fill='white'>TADOR</text>
+<rect x='1080' y='495' width='470' height='68' rx='34' fill='#cc3556'/>
+<text x='1140' y='545' font-size='58' font-family='Arial' font-weight='700' fill='white'>ÓTIMA FIXAÇÃO</text>
+<rect x='610' y='180' width='120' height='410' rx='55' fill='#f2879f' opacity='.8'/>
+<rect x='760' y='180' width='120' height='410' rx='55' fill='#f2879f'/>
+<rect x='910' y='180' width='120' height='410' rx='55' fill='#f2879f' opacity='.8'/>
+</svg>
