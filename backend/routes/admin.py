@@ -1,4 +1,5 @@
 import sqlite3
+from collections import defaultdict
 from datetime import datetime, timedelta
 
 from flask import Blueprint, abort, flash, g, jsonify, redirect, render_template, request, session, url_for
@@ -25,7 +26,6 @@ from services import (
     get_order,
     get_product,
     get_product_channel_mappings,
-    get_sold_products,
     list_low_stock_products,
     list_orders,
     list_products,
@@ -39,6 +39,8 @@ from services import (
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 VALID_ROLES = tuple(ROLE_PERMISSIONS.keys())
+DASHBOARD_PERIOD_DEFAULT = 14
+COMPARISON_PERIOD_OPTIONS = {7, 14, 30, 90}
 
 
 @admin_bp.before_app_request
@@ -60,42 +62,141 @@ def _pct_change(current, previous):
     return ((current - previous) / previous) * 100.0
 
 
-def _build_dashboard_widgets(company_id, role, metrics, sold_products):
+def _safe_order_datetime(order):
+    try:
+        return datetime.fromisoformat(order["created_at"])
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_state_from_address(address):
+    if not address:
+        return "Não informado"
+    normalized = " ".join(address.replace("\n", " ").replace("-", " ").split()).upper()
+    state_aliases = {
+        "SP": "SP",
+        "SAO PAULO": "SP",
+        "RJ": "RJ",
+        "RIO DE JANEIRO": "RJ",
+        "MG": "MG",
+        "MINAS GERAIS": "MG",
+        "ES": "ES",
+        "ESPIRITO SANTO": "ES",
+        "PR": "PR",
+        "PARANA": "PR",
+        "SC": "SC",
+        "SANTA CATARINA": "SC",
+        "RS": "RS",
+        "RIO GRANDE DO SUL": "RS",
+    }
+
+    for key, state in state_aliases.items():
+        if f" {key} " in f" {normalized} ":
+            return state
+
+    tokens = [token for token in normalized.split(" ") if token]
+    if tokens and len(tokens[-1]) == 2 and tokens[-1].isalpha():
+        return tokens[-1]
+    return "Não informado"
+
+
+def _build_dashboard_filters(args):
+    period_days = args.get("period_days", type=int) or DASHBOARD_PERIOD_DEFAULT
+    if period_days not in COMPARISON_PERIOD_OPTIONS:
+        period_days = DASHBOARD_PERIOD_DEFAULT
+    return {
+        "period_days": period_days,
+        "source": (args.get("source") or "").strip().lower(),
+        "status": (args.get("status") or "").strip().lower(),
+        "payment_status": (args.get("payment_status") or "").strip().lower(),
+        "shipping_status": (args.get("shipping_status") or "").strip().lower(),
+    }
+
+
+def _order_matches_filters(order, filters):
+    for field in ("source", "status", "payment_status", "shipping_status"):
+        expected = filters.get(field)
+        if expected and (order.get(field) or "").strip().lower() != expected:
+            return False
+    return True
+
+
+def _aggregate_top_products(company_id, order_ids):
+    if not order_ids:
+        return []
+    placeholders = ",".join(["?"] * len(order_ids))
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT p.id, p.name, SUM(oi.quantity) AS quantity, SUM(oi.quantity * oi.price) AS revenue
+            FROM order_items oi
+            JOIN products p ON p.id = oi.product_id
+            WHERE oi.company_id = ?
+              AND p.company_id = ?
+              AND oi.order_id IN ({placeholders})
+            GROUP BY p.id, p.name
+            ORDER BY revenue DESC, quantity DESC
+            LIMIT 8
+            """,
+            (int(company_id), int(company_id), *order_ids),
+        ).fetchall()
+    return [
+        {
+            "product_id": int(row["id"]),
+            "name": row["name"],
+            "quantity": int(row["quantity"] or 0),
+            "revenue": float(row["revenue"] or 0),
+        }
+        for row in rows
+    ]
+
+
+def _build_dashboard_widgets(company_id, role, metrics, filters):
     today = datetime.utcnow().date()
-    period_days = 14
+    period_days = int(filters["period_days"])
     start_day = today - timedelta(days=period_days - 1)
     prev_start = start_day - timedelta(days=period_days)
     prev_end = start_day - timedelta(days=1)
 
-    orders = list_orders(company_id)
+    orders = [order.to_dict() for order in list_orders(company_id)]
     products = list_products(company_id, include_inactive=True)
+
+    filtered_orders = [order for order in orders if _order_matches_filters(order, filters)]
 
     orders_in_period = []
     previous_orders = []
-    for order in orders:
-        created = datetime.fromisoformat(order["created_at"]).date()
+    for order in filtered_orders:
+        created_at = _safe_order_datetime(order)
+        if not created_at:
+            continue
+        created = created_at.date()
         if start_day <= created <= today:
             orders_in_period.append(order)
         elif prev_start <= created <= prev_end:
             previous_orders.append(order)
 
-    period_revenue = sum(float(order["total"]) for order in orders_in_period)
-    prev_revenue = sum(float(order["total"]) for order in previous_orders)
-    period_orders_count = len(orders_in_period)
-    prev_orders_count = len(previous_orders)
+    successful_orders = [order for order in orders_in_period if order["payment_status"] == "paid" and order["status"] != "cancelled"]
+    prev_successful_orders = [order for order in previous_orders if order["payment_status"] == "paid" and order["status"] != "cancelled"]
+
+    period_revenue = sum(float(order["total"]) for order in successful_orders)
+    prev_revenue = sum(float(order["total"]) for order in prev_successful_orders)
+    period_orders_count = len(successful_orders)
+    prev_orders_count = len(prev_successful_orders)
 
     avg_ticket = period_revenue / period_orders_count if period_orders_count else 0
     prev_avg_ticket = prev_revenue / prev_orders_count if prev_orders_count else 0
 
-    converted = len([order for order in orders_in_period if order["payment_status"] == "paid"])
-    conversion_rate = (converted / period_orders_count) * 100 if period_orders_count else 0
-    prev_converted = len([order for order in previous_orders if order["payment_status"] == "paid"])
-    prev_conversion_rate = (prev_converted / prev_orders_count) * 100 if prev_orders_count else 0
+    conversion_base = len([order for order in orders_in_period if order["status"] != "cancelled"])
+    prev_conversion_base = len([order for order in previous_orders if order["status"] != "cancelled"])
+    converted = len(successful_orders)
+    prev_converted = len(prev_successful_orders)
+    conversion_rate = (converted / conversion_base) * 100 if conversion_base else 0
+    prev_conversion_rate = (prev_converted / prev_conversion_base) * 100 if prev_conversion_base else 0
 
-    pending_payment = len([order for order in orders if order["payment_status"] == "pending"])
-    awaiting_shipping = len([order for order in orders if order["shipping_status"] in {"pending", "ready_to_ship"}])
+    pending_payment = len([order for order in orders_in_period if order["payment_status"] == "pending"])
+    awaiting_shipping = len([order for order in orders_in_period if order["shipping_status"] in {"pending", "ready_to_ship"}])
     cancelled_orders = len([order for order in orders_in_period if order["status"] == "cancelled"])
-    pending_orders = len([order for order in orders if order["status"] == "pending"])
+    pending_orders = len([order for order in orders_in_period if order["status"] == "pending"])
     approved_orders = len([order for order in orders_in_period if order["status"] in {"paid", "preparing", "ready_to_ship", "shipped", "delivered"}])
     shipped_orders = len([order for order in orders_in_period if order["shipping_status"] in {"shipped", "delivered"}])
 
@@ -103,28 +204,52 @@ def _build_dashboard_widgets(company_id, role, metrics, sold_products):
     new_products = products[:5]
 
     daily_sales = []
+    top_products = _aggregate_top_products(company_id, [int(order["id"]) for order in successful_orders])
+
+    daily_revenue_map = defaultdict(float)
+    daily_orders_map = defaultdict(int)
+    for order in successful_orders:
+        created_at = _safe_order_datetime(order)
+        if not created_at:
+            continue
+        day_key = created_at.date()
+        daily_revenue_map[day_key] += float(order["total"])
+        daily_orders_map[day_key] += 1
+
     for index in range(period_days):
         target_day = start_day + timedelta(days=index)
-        day_orders = [order for order in orders_in_period if datetime.fromisoformat(order["created_at"]).date() == target_day]
         daily_sales.append(
             {
                 "day": target_day.strftime("%d/%m"),
-                "orders": len(day_orders),
-                "revenue": sum(float(order["total"]) for order in day_orders),
+                "orders": daily_orders_map[target_day],
+                "revenue": daily_revenue_map[target_day],
             }
         )
 
     source_summary = {}
-    for order in orders_in_period:
+    geography_summary = {}
+    for order in successful_orders:
         source = order["source"] or "manual"
         source_summary.setdefault(source, {"source": source, "orders": 0, "revenue": 0.0})
         source_summary[source]["orders"] += 1
         source_summary[source]["revenue"] += float(order["total"])
 
+        state = _normalize_state_from_address(order.get("customer_address"))
+        geography_summary.setdefault(state, {"region": state, "orders": 0, "revenue": 0.0})
+        geography_summary[state]["orders"] += 1
+        geography_summary[state]["revenue"] += float(order["total"])
+
     order_status = {}
-    for order in orders:
+    for order in orders_in_period:
         status = order["status"]
         order_status[status] = order_status.get(status, 0) + 1
+
+    unique_customers = {order.get("customer_phone") for order in successful_orders if order.get("customer_phone")}
+    previous_customer_phones = {order.get("customer_phone") for order in previous_orders if order.get("customer_phone")}
+    new_customers = len([phone for phone in unique_customers if phone not in previous_customer_phones])
+    active_carts = len([order for order in orders_in_period if order["status"] == "pending" and order["payment_status"] == "pending"])
+
+    recent_orders = sorted(orders_in_period, key=lambda order: (order["created_at"], order["id"]), reverse=True)[:10]
 
     role_widgets = {
         "super_admin": "all",
@@ -141,7 +266,7 @@ def _build_dashboard_widgets(company_id, role, metrics, sold_products):
     }
 
     return {
-        "period_label": "Últimos 14 dias",
+        "period_label": f"Últimos {period_days} dias",
         "kpis": [
             {"label": "Receita hoje", "value": metrics["sales_today_revenue"], "currency": True, "change": _pct_change(metrics["sales_today_revenue"], prev_revenue / max(period_days, 1)), "icon": "💰"},
             {"label": "Receita no período", "value": period_revenue, "currency": True, "change": _pct_change(period_revenue, prev_revenue), "icon": "📈"},
@@ -149,19 +274,20 @@ def _build_dashboard_widgets(company_id, role, metrics, sold_products):
             {"label": "Pedidos no período", "value": period_orders_count, "change": _pct_change(period_orders_count, prev_orders_count), "icon": "🛍️"},
             {"label": "Ticket médio", "value": avg_ticket, "currency": True, "change": _pct_change(avg_ticket, prev_avg_ticket), "icon": "🎯"},
             {"label": "Taxa de conversão", "value": conversion_rate, "suffix": "%", "change": _pct_change(conversion_rate, prev_conversion_rate), "icon": "⚡"},
-            {"label": "Carrinhos ativos", "value": max(int(metrics["sales_today"] * 2.1), 1), "change": 4.2, "icon": "🛒"},
-            {"label": "Novos clientes", "value": max(int(period_orders_count * 0.44), 0), "change": 8.3, "icon": "👥"},
+            {"label": "Carrinhos ativos", "value": active_carts, "change": _pct_change(active_carts, len([order for order in previous_orders if order["status"] == "pending" and order["payment_status"] == "pending"])), "icon": "🛒"},
+            {"label": "Novos clientes", "value": new_customers, "change": _pct_change(new_customers, 0), "icon": "👥"},
             {"label": "Baixo estoque", "value": len(low_stock_products), "change": -2.0, "icon": "📦"},
-            {"label": "Pedidos pendentes", "value": pending_orders, "change": 6.1, "icon": "⏳"},
+            {"label": "Pedidos pendentes", "value": pending_orders, "change": _pct_change(pending_orders, len([order for order in previous_orders if order["status"] == "pending"])), "icon": "⏳"},
             {"label": "Pedidos cancelados", "value": cancelled_orders, "change": 11.4, "icon": "🚫"},
-            {"label": "Aguardando pagamento", "value": pending_payment, "change": 3.7, "icon": "💳"},
-            {"label": "Aguardando envio", "value": awaiting_shipping, "change": -1.8, "icon": "🚚"},
+            {"label": "Aguardando pagamento", "value": pending_payment, "change": _pct_change(pending_payment, len([order for order in previous_orders if order["payment_status"] == "pending"])), "icon": "💳"},
+            {"label": "Aguardando envio", "value": awaiting_shipping, "change": _pct_change(awaiting_shipping, len([order for order in previous_orders if order["shipping_status"] in {"pending", "ready_to_ship"}])), "icon": "🚚"},
         ],
         "daily_sales": daily_sales,
-        "source_summary": list(source_summary.values()),
+        "source_summary": sorted(source_summary.values(), key=lambda item: item["revenue"], reverse=True),
+        "geo_summary": sorted(geography_summary.values(), key=lambda item: item["revenue"], reverse=True),
         "order_status": order_status,
-        "recent_orders": orders[:10],
-        "top_products": sold_products[:8],
+        "recent_orders": recent_orders,
+        "top_products": top_products,
         "new_products": new_products,
         "low_stock_products": low_stock_products[:8],
         "ops": {
@@ -173,19 +299,25 @@ def _build_dashboard_widgets(company_id, role, metrics, sold_products):
             "avg_processing_time": 14 if shipped_orders else 0,
             "approval_rate": (approved_orders / period_orders_count) * 100 if period_orders_count else 0,
         },
+        "customer_stats": {
+            "new_customers": new_customers,
+            "repeat_customers": max(len(unique_customers) - new_customers, 0),
+            "purchase_frequency": (period_orders_count / len(unique_customers)) if unique_customers else 0,
+        },
         "insights": [
-            "O tráfego mobile está acima da média, mas a conversão ainda está abaixo do desktop.",
-            "Canal com melhor performance no período: {}.".format(max(source_summary.values(), key=lambda item: item["revenue"]) ["source"] if source_summary else "sem dados"),
+            "Canal com melhor performance no período: {}.".format(max(source_summary.values(), key=lambda item: item["revenue"])["source"] if source_summary else "sem dados"),
+            "Estado com maior receita no período: {}.".format(max(geography_summary.values(), key=lambda item: item["revenue"])["region"] if geography_summary else "sem dados"),
             "Pedidos pendentes acima da faixa ideal para operação rápida." if pending_orders > 5 else "Fluxo operacional dentro da meta diária.",
-            "Produtos com alta visualização e baixa conversão precisam de ajuste de preço e descrição.",
+            "Conversão do período em {:.1f}% com {} pedidos pagos.".format(conversion_rate, converted),
         ],
         "alerts": [
-            {"level": "warning", "text": f"{len(low_stock_products)} produtos estão abaixo do estoque mínimo."},
-            {"level": "danger", "text": f"{cancelled_orders} pedidos cancelados no período monitorado." if cancelled_orders else "Cancelamentos sob controle no período."},
-            {"level": "info", "text": "São Paulo segue como principal praça de receita nesta semana."},
-            {"level": "warning", "text": "Campanha de e-mail gerou visitas, mas com baixa conversão em pedidos."},
+            {"severity": "medium", "text": f"{len(low_stock_products)} produtos estão abaixo do estoque mínimo."},
+            {"severity": "high", "text": f"{cancelled_orders} pedidos cancelados no período monitorado." if cancelled_orders else "Cancelamentos sob controle no período."},
+            {"severity": "low", "text": f"{active_carts} carrinhos ativos aguardando conversão."},
+            {"severity": "medium", "text": f"{awaiting_shipping} pedidos aguardam expedição."},
         ],
         "widgets_allowed": role_widgets.get(role, set()),
+        "filters_applied": filters,
     }
 
 
@@ -275,10 +407,10 @@ def admin_home():
 @permission_required("dashboard:read")
 def admin_dashboard():
     company_id = g.current_user["company_id"]
+    filters = _build_dashboard_filters(request.args)
     metrics = get_dashboard_data(company_id)
-    sold_products = get_sold_products(company_id)
-    dashboard = _build_dashboard_widgets(company_id, g.current_user["role"], metrics, sold_products)
-    return render_template("admin/dashboard.html", metrics=metrics, sold_products=sold_products, dashboard=dashboard)
+    dashboard = _build_dashboard_widgets(company_id, g.current_user["role"], metrics, filters)
+    return render_template("admin/dashboard.html", metrics=metrics, dashboard=dashboard)
 
 
 @admin_bp.get("/orders")
