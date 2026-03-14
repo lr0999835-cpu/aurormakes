@@ -2,12 +2,44 @@
 {% block title %}Usuários | Admin{% endblock %}
 {% block content %}
 <section class="admin-section">
-  <h1>Usuários da empresa</h1>
-  <p>Lista de contas autorizadas para este tenant.</p>
+  <h1>Gestão de usuários</h1>
+  <p>Cadastre, atualize, desative e redefina senha de usuários por empresa.</p>
+
+  {% if g.current_user.role == 'super_admin' %}
+  <form method="get" class="admin-inline-form" style="margin-bottom:1rem;">
+    <label>Empresa</label>
+    <select name="company_id">
+      {% for company in companies %}
+      <option value="{{ company.id }}" {% if company.id == selected_company_id %}selected{% endif %}>{{ company.name }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn" type="submit">Filtrar</button>
+  </form>
+  {% endif %}
+
+  <div class="admin-card" style="padding:1rem;margin-bottom:1rem;">
+    <h2>Novo usuário</h2>
+    <form method="post" action="{{ url_for('admin.admin_create_user') }}" class="admin-form-grid">
+      <input type="hidden" name="company_id" value="{{ selected_company_id }}">
+      <label>Usuário <input name="username" required></label>
+      <label>E-mail <input type="email" name="email" required></label>
+      <label>Senha inicial <input type="password" name="password" minlength="8" required></label>
+      <label>Papel
+        <select name="role">
+          {% for role in valid_roles %}
+          <option value="{{ role }}">{{ role }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label><input type="checkbox" name="is_active" checked> Ativo</label>
+      <button type="submit" class="btn">Criar usuário</button>
+    </form>
+  </div>
+
   <div class="admin-table-wrapper">
     <table class="admin-table">
       <thead>
-        <tr><th>Usuário</th><th>E-mail</th><th>Papel</th><th>Status</th><th>Último login</th></tr>
+        <tr><th>Usuário</th><th>E-mail</th><th>Papel</th><th>Status</th><th>Último login</th><th>Ações</th></tr>
       </thead>
       <tbody>
         {% for user in users %}
@@ -17,9 +49,31 @@
           <td>{{ user.role }}</td>
           <td>{{ 'Ativo' if user.is_active else 'Inativo' }}</td>
           <td>{{ user.last_login_at or '-' }}</td>
+          <td>
+            <details>
+              <summary>Editar</summary>
+              <form method="post" action="{{ url_for('admin.admin_update_user', user_id=user.id) }}" class="admin-form-grid" style="margin-top:.5rem;">
+                <label>Usuário <input name="username" value="{{ user.username }}" required></label>
+                <label>E-mail <input type="email" name="email" value="{{ user.email }}" required></label>
+                <label>Papel
+                  <select name="role">
+                    {% for role in valid_roles %}
+                    <option value="{{ role }}" {% if role == user.role %}selected{% endif %}>{{ role }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label><input type="checkbox" name="is_active" {% if user.is_active %}checked{% endif %}> Ativo</label>
+                <button type="submit" class="btn">Salvar</button>
+              </form>
+              <form method="post" action="{{ url_for('admin.admin_reset_password', user_id=user.id) }}" class="admin-inline-form" style="margin-top:.5rem;">
+                <label>Nova senha <input type="password" name="new_password" minlength="8" required></label>
+                <button type="submit" class="btn btn-outline">Resetar senha</button>
+              </form>
+            </details>
+          </td>
         </tr>
         {% else %}
-        <tr><td colspan="5">Nenhum usuário cadastrado.</td></tr>
+        <tr><td colspan="6">Nenhum usuário cadastrado.</td></tr>
         {% endfor %}
       </tbody>
     </table>

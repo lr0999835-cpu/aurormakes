@@ -1,7 +1,12 @@
-from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
+import sqlite3
+
+from flask import Blueprint, abort, flash, g, redirect, render_template, request, session, url_for
+from werkzeug.security import generate_password_hash
 
 from auth import (
+    ROLE_PERMISSIONS,
     authenticate_user,
+    can_manage_company,
     has_permission,
     load_current_user,
     login_required,
@@ -32,6 +37,7 @@ from services import (
 )
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
+VALID_ROLES = tuple(ROLE_PERMISSIONS.keys())
 
 
 @admin_bp.before_app_request
@@ -39,6 +45,22 @@ def _inject_user_context():
     user = load_current_user()
     g.current_user = user
     g.can_access = (lambda permission: has_permission(user, permission)) if user else (lambda _permission: False)
+
+
+def _normalize_slug(value):
+    return (value or "").strip().lower().replace(" ", "-")
+
+
+def _companies_for_user(user):
+    with get_connection() as conn:
+        if user["role"] == "super_admin":
+            rows = conn.execute("SELECT id, name, slug, is_active, created_at FROM companies ORDER BY created_at DESC").fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id, name, slug, is_active, created_at FROM companies WHERE id = ?",
+                (int(user["company_id"]),),
+            ).fetchall()
+    return rows
 
 
 @admin_bp.get("/login")
@@ -279,13 +301,200 @@ def admin_integrations():
     return render_template("admin/integrations.html")
 
 
+@admin_bp.get("/empresas")
+@permission_required("users:read")
+def admin_companies():
+    if g.current_user["role"] != "super_admin":
+        abort(403)
+    companies = _companies_for_user(g.current_user)
+    return render_template("admin/companies.html", companies=companies)
+
+
+@admin_bp.post("/empresas")
+@permission_required("users:write")
+def admin_create_company():
+    if g.current_user["role"] != "super_admin":
+        abort(403)
+
+    name = (request.form.get("name") or "").strip()
+    slug = _normalize_slug(request.form.get("slug") or name)
+    if not name or not slug:
+        flash("Nome e slug são obrigatórios.", "error")
+        return redirect(url_for("admin.admin_companies"))
+
+    try:
+        with get_connection() as conn:
+            conn.execute("INSERT INTO companies (name, slug, is_active) VALUES (?, ?, 1)", (name, slug))
+            conn.commit()
+    except sqlite3.IntegrityError:
+        flash("Não foi possível criar: slug já existe.", "error")
+        return redirect(url_for("admin.admin_companies"))
+    flash("Empresa criada com sucesso.", "success")
+    return redirect(url_for("admin.admin_companies"))
+
+
+@admin_bp.post("/empresas/<int:company_id>/update")
+@permission_required("users:write")
+def admin_update_company(company_id):
+    if g.current_user["role"] != "super_admin":
+        abort(403)
+
+    name = (request.form.get("name") or "").strip()
+    slug = _normalize_slug(request.form.get("slug") or name)
+    is_active = 1 if request.form.get("is_active") == "on" else 0
+    if not name or not slug:
+        flash("Nome e slug são obrigatórios.", "error")
+        return redirect(url_for("admin.admin_companies"))
+
+    try:
+        with get_connection() as conn:
+            conn.execute("UPDATE companies SET name = ?, slug = ?, is_active = ? WHERE id = ?", (name, slug, is_active, company_id))
+            conn.commit()
+    except sqlite3.IntegrityError:
+        flash("Não foi possível atualizar: slug já existe.", "error")
+        return redirect(url_for("admin.admin_companies"))
+    flash("Empresa atualizada.", "success")
+    return redirect(url_for("admin.admin_companies"))
+
+
 @admin_bp.get("/usuarios")
 @permission_required("users:read")
 def admin_users():
-    company_id = g.current_user["company_id"]
+    selected_company_id = request.args.get("company_id", type=int)
+    current_user = g.current_user
+    target_company_id = selected_company_id or int(current_user["company_id"])
+
+    if not can_manage_company(current_user, target_company_id):
+        abort(403)
+
     with get_connection() as conn:
         users = conn.execute(
-            "SELECT id, username, email, role, is_active, last_login_at, created_at FROM users WHERE company_id = ? ORDER BY created_at DESC",
-            (int(company_id),),
+            """
+            SELECT u.id, u.company_id, u.username, u.email, u.role, u.is_active, u.last_login_at, u.created_at,
+                   c.name AS company_name
+            FROM users u
+            JOIN companies c ON c.id = u.company_id
+            WHERE u.company_id = ?
+            ORDER BY u.created_at DESC
+            """,
+            (int(target_company_id),),
         ).fetchall()
-    return render_template("admin/users.html", users=users)
+
+    companies = _companies_for_user(current_user)
+    return render_template(
+        "admin/users.html",
+        users=users,
+        companies=companies,
+        selected_company_id=target_company_id,
+        valid_roles=VALID_ROLES,
+    )
+
+
+@admin_bp.post("/usuarios")
+@permission_required("users:write")
+def admin_create_user():
+    current_user = g.current_user
+    target_company_id = request.form.get("company_id", type=int) or int(current_user["company_id"])
+
+    if not can_manage_company(current_user, target_company_id):
+        abort(403)
+
+    username = (request.form.get("username") or "").strip()
+    email = (request.form.get("email") or "").strip().lower()
+    password = request.form.get("password") or ""
+    role = (request.form.get("role") or "viewer").strip()
+    is_active = 1 if request.form.get("is_active") == "on" else 0
+
+    if role not in VALID_ROLES:
+        flash("Papel inválido.", "error")
+        return redirect(url_for("admin.admin_users", company_id=target_company_id))
+    if not username or not email or len(password) < 8:
+        flash("Usuário, e-mail e senha (mín. 8 caracteres) são obrigatórios.", "error")
+        return redirect(url_for("admin.admin_users", company_id=target_company_id))
+
+    try:
+        with get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO users (company_id, username, email, password_hash, role, is_active)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (target_company_id, username, email, generate_password_hash(password), role, is_active),
+            )
+            conn.commit()
+    except sqlite3.IntegrityError:
+        flash("Usuário ou e-mail já cadastrado para esta empresa.", "error")
+        return redirect(url_for("admin.admin_users", company_id=target_company_id))
+    flash("Usuário criado com sucesso.", "success")
+    return redirect(url_for("admin.admin_users", company_id=target_company_id))
+
+
+@admin_bp.post("/usuarios/<int:user_id>/update")
+@permission_required("users:write")
+def admin_update_user(user_id):
+    current_user = g.current_user
+    with get_connection() as conn:
+        existing = conn.execute("SELECT id, company_id FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not existing:
+            abort(404)
+
+        if not can_manage_company(current_user, existing["company_id"]):
+            abort(403)
+
+        username = (request.form.get("username") or "").strip()
+        email = (request.form.get("email") or "").strip().lower()
+        role = (request.form.get("role") or "viewer").strip()
+        is_active = 1 if request.form.get("is_active") == "on" else 0
+
+        if role not in VALID_ROLES:
+            flash("Papel inválido.", "error")
+            return redirect(url_for("admin.admin_users", company_id=existing["company_id"]))
+
+        if not username or not email:
+            flash("Usuário e e-mail são obrigatórios.", "error")
+            return redirect(url_for("admin.admin_users", company_id=existing["company_id"]))
+
+        try:
+            conn.execute(
+                "UPDATE users SET username = ?, email = ?, role = ?, is_active = ? WHERE id = ?",
+                (username, email, role, is_active, user_id),
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            flash("Usuário ou e-mail já cadastrado para esta empresa.", "error")
+            return redirect(url_for("admin.admin_users", company_id=existing["company_id"]))
+
+    flash("Usuário atualizado.", "success")
+    return redirect(url_for("admin.admin_users", company_id=existing["company_id"]))
+
+
+@admin_bp.post("/usuarios/<int:user_id>/reset-password")
+@permission_required("users:write")
+def admin_reset_password(user_id):
+    new_password = request.form.get("new_password") or ""
+    if len(new_password) < 8:
+        flash("A nova senha deve conter no mínimo 8 caracteres.", "error")
+        return redirect(url_for("admin.admin_users"))
+
+    current_user = g.current_user
+    with get_connection() as conn:
+        existing = conn.execute("SELECT id, company_id FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not existing:
+            abort(404)
+        if not can_manage_company(current_user, existing["company_id"]):
+            abort(403)
+
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (generate_password_hash(new_password), user_id),
+        )
+        conn.commit()
+
+    flash("Senha redefinida com sucesso.", "success")
+    return redirect(url_for("admin.admin_users", company_id=existing["company_id"]))
+
+
+@admin_bp.get("/permissoes")
+@permission_required("permissions:read")
+def admin_permissions():
+    return render_template("admin/permissions.html", role_permissions=ROLE_PERMISSIONS)

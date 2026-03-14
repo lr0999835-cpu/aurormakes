@@ -1,0 +1,45 @@
+{% extends 'admin/_layout.html' %}
+{% block title %}Empresas | Admin{% endblock %}
+{% block content %}
+<section class="admin-section">
+  <h1>Gestão de empresas</h1>
+  <p>Cadastro, edição e ativação/desativação de empresas (somente super_admin).</p>
+
+  <div class="admin-card" style="padding:1rem;margin-bottom:1rem;">
+    <h2>Nova empresa</h2>
+    <form method="post" action="{{ url_for('admin.admin_create_company') }}" class="admin-form-grid">
+      <label>Nome <input name="name" required></label>
+      <label>Slug <input name="slug" placeholder="minha-empresa" required></label>
+      <button type="submit" class="btn">Criar empresa</button>
+    </form>
+  </div>
+
+  <div class="admin-table-wrapper">
+    <table class="admin-table">
+      <thead>
+        <tr><th>ID</th><th>Nome</th><th>Slug</th><th>Status</th><th>Ações</th></tr>
+      </thead>
+      <tbody>
+        {% for company in companies %}
+        <tr>
+          <td>{{ company.id }}</td>
+          <td>{{ company.name }}</td>
+          <td>{{ company.slug }}</td>
+          <td>{{ 'Ativa' if company.is_active else 'Inativa' }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin.admin_update_company', company_id=company.id) }}" class="admin-inline-form">
+              <input name="name" value="{{ company.name }}" required>
+              <input name="slug" value="{{ company.slug }}" required>
+              <label><input type="checkbox" name="is_active" {% if company.is_active %}checked{% endif %}> Ativa</label>
+              <button type="submit" class="btn btn-outline">Salvar</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">Nenhuma empresa cadastrada.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

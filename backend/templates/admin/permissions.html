@@ -1,0 +1,29 @@
+{% extends 'admin/_layout.html' %}
+{% block title %}Permissões | Admin{% endblock %}
+{% block content %}
+<section class="admin-section">
+  <h1>Roles e permissões</h1>
+  <p>Matriz de acesso aplicada no backend para o sistema multiempresa.</p>
+  <div class="admin-table-wrapper">
+    <table class="admin-table">
+      <thead>
+        <tr><th>Role</th><th>Permissões</th></tr>
+      </thead>
+      <tbody>
+        {% for role, permissions in role_permissions.items() %}
+        <tr>
+          <td><strong>{{ role }}</strong></td>
+          <td>
+            {% if '*' in permissions %}
+              acesso total
+            {% else %}
+              {{ permissions|sort|join(', ') }}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
