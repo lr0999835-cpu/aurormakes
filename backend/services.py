@@ -18,6 +18,13 @@ LOW_STOCK_LIMIT = 3
 logger = logging.getLogger(__name__)
 
 
+def _is_valid_email(value):
+    email = (value or "").strip()
+    return bool(email) and "@" in email and "." in email.split("@")[-1]
+
+
+
+
 def _apply_checkout_shipping_details(payload):
     data = dict(payload or {})
     selected_method = (data.get("shipping_method") or data.get("shippingMethod") or "").strip()
@@ -587,12 +594,24 @@ def register_payment_event(company_id, payload):
 def create_checkout(company_id, payload):
     payload = _apply_checkout_shipping_details(payload)
     normalized = _normalize_order_payload(payload)
+
+    customer_email = (payload.get("customer_email") or payload.get("customerEmail") or "").strip().lower()
+    if customer_email and not _is_valid_email(customer_email):
+        raise ValueError("Informe um e-mail válido para continuar.")
+
+    phone_digits = "".join(ch for ch in (normalized.get("customer_phone") or "") if ch.isdigit())
+    if len(phone_digits) < 10:
+        raise ValueError("Informe um telefone válido com DDD.")
+
+    if normalized.get("payment_method") not in {"pix", "cartao", "boleto", "card", "credito", "credit_card", "boleto_bancario"}:
+        raise ValueError("Método de pagamento inválido. Escolha PIX, cartão ou boleto.")
+
     order = create_order(company_id, normalized)
 
     customer = {
         "name": normalized["customer_name"],
         "phone": normalized["customer_phone"],
-        "email": payload.get("customer_email") or payload.get("customerEmail") or "",
+        "email": customer_email,
     }
     card_data = payload.get("card") if isinstance(payload.get("card"), dict) else None
     payment_method = normalized["payment_method"] or "pix"

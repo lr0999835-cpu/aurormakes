@@ -32,7 +32,7 @@ const CHECKOUT_STATE = {
 
 const BRAZIL_TIMEZONE = "America/Sao_Paulo";
 const PAYMENT_GATEWAY = "mercadopago";
-let PAYMENT_CONFIG = { gateway: PAYMENT_GATEWAY, mercado_pago_public_key: "" };
+let PAYMENT_CONFIG = { gateway: PAYMENT_GATEWAY, mercado_pago_public_key: "", checkout_login_required: false };
 let MERCADO_PAGO_CLIENT = null;
 
 
@@ -167,7 +167,7 @@ async function calculateShippingByCep() {
 }
 
 function moveToStep(nextStep) {
-  CHECKOUT_STATE.step = Math.min(3, Math.max(1, nextStep));
+  CHECKOUT_STATE.step = Math.min(7, Math.max(1, nextStep));
   renderCartPage();
 }
 
@@ -235,6 +235,10 @@ function buildPaymentPayload(totals) {
       discount_amount: totals.discount,
       confirmation_message: "Após confirmar o pedido, você verá o QR Code e o código Copia e Cola.",
     };
+  }
+
+  if (!["pix", "cartao", "boleto"].includes(CHECKOUT_STATE.paymentMethod)) {
+    throw new Error("Selecione uma forma de pagamento válida para continuar.");
   }
 
   if (CHECKOUT_STATE.paymentMethod === "cartao") {
@@ -333,11 +337,25 @@ function formatAddressPayload() {
   return parts.join(" | ");
 }
 
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
 function validateBeforeStep(step) {
   if (step >= 2) {
     const hasContact = CHECKOUT_STATE.email && CHECKOUT_STATE.fullName && CHECKOUT_STATE.phone;
     if (!hasContact) {
       alert("Preencha e-mail, nome completo e telefone para continuar.");
+      return false;
+    }
+
+    if (!isValidEmail(CHECKOUT_STATE.email)) {
+      alert("Informe um e-mail válido para continuar.");
+      return false;
+    }
+
+    if (String(CHECKOUT_STATE.phone || "").replace(/\D/g, "").length < 10) {
+      alert("Informe um telefone válido com DDD.");
       return false;
     }
   }
@@ -354,6 +372,11 @@ function validateBeforeStep(step) {
     const hasAddress = CHECKOUT_STATE.cep && CHECKOUT_STATE.address && CHECKOUT_STATE.number && CHECKOUT_STATE.district && CHECKOUT_STATE.city && CHECKOUT_STATE.state;
     if (!hasAddress) {
       alert("Preencha os dados de entrega para avançar ao pagamento.");
+      return false;
+    }
+
+    if (normalizeCep(CHECKOUT_STATE.cep).length !== 8) {
+      alert("Informe um CEP válido no formato 00000-000.");
       return false;
     }
 
@@ -395,6 +418,7 @@ async function createOrderFromCart() {
   const payment = buildPaymentPayload({ subtotal, shipping, discount, total: Math.max(0, subtotal + shipping - discount) });
 
   const payload = {
+    customer_id: CHECKOUT_STATE.customerLoggedIn ? Number((window.__CUSTOMER_SESSION__ && window.__CUSTOMER_SESSION__.customer && window.__CUSTOMER_SESSION__.customer.id) || 0) || undefined : undefined,
     customer_name: CHECKOUT_STATE.fullName.trim(),
     customer_phone: CHECKOUT_STATE.phone.trim(),
     customer_email: CHECKOUT_STATE.email.trim(),
@@ -415,6 +439,10 @@ async function createOrderFromCart() {
       quantity: item.quantidade
     }))
   };
+
+  if (!["pix", "cartao", "boleto"].includes(CHECKOUT_STATE.paymentMethod)) {
+    throw new Error("Selecione uma forma de pagamento válida para continuar.");
+  }
 
   if (CHECKOUT_STATE.paymentMethod === "cartao") {
     payload.card = await buildCardToken();
@@ -439,6 +467,7 @@ async function checkoutNow() {
     const order = await createOrderFromCart();
     saveCart([]);
     updateCartCount();
+    CHECKOUT_STATE.step = 7;
     renderCartPage();
     const instructions = document.getElementById("checkout-instructions");
     if (instructions) instructions.textContent = buildPaymentInstructions(order);
@@ -448,7 +477,7 @@ async function checkoutNow() {
 }
 
 function renderStepIndicator() {
-  const labels = ["Carrinho", "Entrega", "Pagamento"];
+  const labels = ["Carrinho", "Contato", "Entrega", "Frete", "Pagamento", "Confirmação", "Pagamento"];
   return `<ol class="checkout-steps">${labels.map((label, index) => {
     const stepNumber = index + 1;
     const stateClass = CHECKOUT_STATE.step === stepNumber ? "is-active" : CHECKOUT_STATE.step > stepNumber ? "is-done" : "";
@@ -513,6 +542,10 @@ function renderPaymentPanel() {
     const totals = getOrderTotals();
     dynamicPanel = `<div class="payment-note payment-note-pix"><strong>Pagamento via PIX</strong><p>Após confirmar o pedido, exibiremos o QR Code e o código copia e cola para pagamento instantâneo.</p><div class="pix-preview"><div class="pix-qr-placeholder">QR Code do PIX</div><div><p><strong>Código Copia e Cola</strong></p><code>Será gerado após a confirmação do pedido.</code><p class="checkout-hint">Confirmação automática em poucos segundos após o pagamento.</p></div></div><p class="pix-discount-inline">Ou ${formatPrice(Math.max(0, totals.total - totals.subtotal * 0.05))} com Pix</p></div>`;
   }
+  if (!["pix", "cartao", "boleto"].includes(CHECKOUT_STATE.paymentMethod)) {
+    throw new Error("Selecione uma forma de pagamento válida para continuar.");
+  }
+
   if (CHECKOUT_STATE.paymentMethod === "cartao") {
     dynamicPanel = `
       <div class="grid-2 payment-fields">
@@ -542,6 +575,17 @@ function renderStepContent(detailedCart, totals) {
   const step = CHECKOUT_STATE.step;
 
   if (step === 1) {
+    if (PAYMENT_CONFIG.checkout_login_required && !CHECKOUT_STATE.customerLoggedIn) {
+      return `
+      <div class="checkout-card cart-panel">
+        <h3>Seu carrinho</h3>
+        <p class="checkout-hint">Para finalizar sua compra, entre na sua conta.</p>
+        <div class="checkout-actions">
+          <a class="checkout-btn" href="/conta/entrar">Entrar para finalizar</a>
+        </div>
+      </div>`;
+    }
+
     return `
       <div class="checkout-card cart-panel">
         <h3>Seu carrinho</h3>
@@ -576,7 +620,7 @@ function renderStepContent(detailedCart, totals) {
   if (step === 2) {
     return `
       <section class="checkout-card">
-        <h3>Dados do cliente</h3>
+        <h3>Contato</h3>
         ${CHECKOUT_STATE.customerLoggedIn ? '<p class="checkout-hint">Dados preenchidos com sua conta. Você pode editar antes de continuar.</p>' : '<p class="checkout-hint">Preencha seus dados para avançar para pagamento.</p>'}
         <div class="grid-2">
           <label>Nome completo<input value="${CHECKOUT_STATE.fullName}" oninput="handleCheckoutInput('fullName', this.value)"></label>
@@ -607,18 +651,71 @@ function renderStepContent(detailedCart, totals) {
         ${renderShippingOptions()}
         <div class="checkout-actions">
           <button class="checkout-btn-outline" type="button" onclick="moveToStep(1)">Voltar</button>
-          <button class="checkout-btn-primary" type="button" onclick="if (validateBeforeStep(3)) moveToStep(3)">Continuar</button>
+          <button class="checkout-btn-primary" type="button" onclick="if (validateBeforeStep(2)) moveToStep(3)">Continuar para entrega</button>
         </div>
       </section>`;
   }
 
+  if (step === 3) {
+    return `
+      <section class="checkout-card">
+        <h3>Seleção de frete</h3>
+        ${renderShippingOptions()}
+        <div class="checkout-actions">
+          <button class="checkout-btn-outline" type="button" onclick="moveToStep(2)">Voltar</button>
+          <button class="checkout-btn-primary" type="button" onclick="if (validateBeforeStep(3)) moveToStep(4)">Continuar para pagamento</button>
+        </div>
+      </section>
+    `;
+  }
+
+  if (step === 4) {
+    return `
+      ${renderPaymentPanel()}
+      <div class="checkout-actions">
+        <button class="checkout-btn-outline" type="button" onclick="moveToStep(3)">Voltar</button>
+        <button class="checkout-btn-primary" type="button" onclick="if (validateBeforeStep(3)) moveToStep(5)">Revisar pedido</button>
+      </div>
+    `;
+  }
+
+  if (step === 5) {
+    const selectedShipping = getSelectedShipping();
+    return `
+      <section class="checkout-card">
+        <h3>Confirmação do pedido</h3>
+        <p class="checkout-hint">Confira os dados de contato, entrega, frete e pagamento antes de concluir.</p>
+        <p><strong>Contato:</strong> ${CHECKOUT_STATE.fullName} · ${CHECKOUT_STATE.email} · ${CHECKOUT_STATE.phone}</p>
+        <p><strong>Entrega:</strong> ${formatAddressPayload()}</p>
+        <p><strong>Frete:</strong> ${selectedShipping ? `${selectedShipping.method_name} (${selectedShipping.shipping_eta})` : "Não selecionado"}</p>
+        <p><strong>Pagamento:</strong> ${CHECKOUT_STATE.paymentMethod}</p>
+        <div class="checkout-actions">
+          <button class="checkout-btn-outline" type="button" onclick="moveToStep(4)">Voltar</button>
+          <button class="checkout-btn" type="button" onclick="moveToStep(6)">Confirmar e iniciar pagamento</button>
+        </div>
+      </section>
+    `;
+  }
+
+  if (step === 6) {
+    return `
+      <section class="checkout-card">
+        <h3>Iniciar pagamento</h3>
+        <p class="checkout-hint">Ao confirmar, o pedido será criado e o pagamento será iniciado no método escolhido.</p>
+        <div class="checkout-actions">
+          <button class="checkout-btn-outline" type="button" onclick="moveToStep(5)">Voltar</button>
+          <button class="checkout-btn" type="button" onclick="checkoutNow()">Criar pedido e pagar</button>
+        </div>
+        <pre id="checkout-instructions" class="checkout-response"></pre>
+      </section>
+    `;
+  }
+
   return `
-    ${renderPaymentPanel()}
-    <div class="checkout-actions">
-      <button class="checkout-btn-outline" type="button" onclick="moveToStep(2)">Voltar</button>
-      <button class="checkout-btn" type="button" onclick="checkoutNow()">Confirmar pedido e pagar</button>
-    </div>
-    <pre id="checkout-instructions" class="checkout-response"></pre>
+    <section class="checkout-card">
+      <h3>Pagamento iniciado</h3>
+      <pre id="checkout-instructions" class="checkout-response"></pre>
+    </section>
   `;
 }
 
@@ -674,6 +771,7 @@ async function preloadCustomerData() {
     }
 
     const session = await sessionResponse.json();
+    window.__CUSTOMER_SESSION__ = session;
     CHECKOUT_STATE.customerLoggedIn = Boolean(session.authenticated);
 
     if (!CHECKOUT_STATE.customerLoggedIn) {

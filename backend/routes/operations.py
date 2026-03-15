@@ -1,7 +1,7 @@
 from flask import Blueprint, g, jsonify, request
 import logging
 
-from config import MERCADO_PAGO_PUBLIC_KEY, PAYMENT_GATEWAY
+from config import CHECKOUT_LOGIN_REQUIRED, MERCADO_PAGO_PUBLIC_KEY, PAYMENT_GATEWAY
 
 from auth import api_auth_required, load_current_customer, tenant_for_request
 from shipping_services import calculate_shipping_quotes
@@ -96,6 +96,10 @@ def post_checkout():
     payload = request.get_json(silent=True) or {}
     payload.setdefault("source", "aurora_makes")
     customer = load_current_customer()
+
+    if CHECKOUT_LOGIN_REQUIRED and not customer:
+        return jsonify({"error": "Faça login para finalizar a compra."}), 401
+
     if customer:
         payload["customer_id"] = customer["id"]
     company_id = tenant_for_request()
@@ -145,6 +149,7 @@ def get_payment_config():
         "methods": ["pix", "cartao", "boleto"],
         "currency": "BRL",
         "timezone": "America/Sao_Paulo",
+        "checkout_login_required": CHECKOUT_LOGIN_REQUIRED,
     })
 
 

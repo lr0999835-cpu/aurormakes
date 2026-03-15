@@ -87,7 +87,7 @@ async function loadCustomerOrders() {
     list.innerHTML = '<p>Você ainda não possui pedidos.</p>';
     return;
   }
-  list.innerHTML = orders.map((order) => `<article class="account-card"><strong>Pedido #${order.id}</strong><p>Status: ${order.status}</p><p>Total: R$ ${Number(order.total).toFixed(2)}</p></article>`).join('');
+  list.innerHTML = orders.map((order) => `<article class="account-card"><strong>Pedido #${order.id}</strong><p>Status do pedido: ${order.status}</p><p>Status do pagamento: ${order.payment_status || 'pendente'}</p><p>Pagamento: ${order.payment_method || '-'}</p><p>Frete: ${order.shipping_label || order.shipping_method || '-'}</p><p>Subtotal: R$ ${Number(order.subtotal || 0).toFixed(2)}</p><p>Frete: R$ ${Number(order.shipping_amount || 0).toFixed(2)}</p><p>Desconto: R$ ${Number(order.discount_amount || 0).toFixed(2)}</p><p><strong>Total: R$ ${Number(order.total).toFixed(2)}</strong></p></article>`).join('');
 }
 
 async function loadCustomerAddresses() {

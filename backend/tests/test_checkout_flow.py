@@ -145,6 +145,30 @@ class CheckoutFlowTestCase(unittest.TestCase):
         self.assertIn("entrega-afiliada", ids)
 
 
+
+    def test_checkout_rejects_invalid_contact_data(self):
+        payload = self._checkout_payload()
+        payload["customer_phone"] = "123"
+        payload["customer_email"] = "email-invalido"
+
+        response = self.client.post("/api/checkout", json=payload)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("e-mail válido", response.get_json()["error"])
+
+    def test_checkout_rejects_invalid_payment_selection(self):
+        payload = self._checkout_payload()
+        payload["payment_method"] = "criptomoeda"
+
+        response = self.client.post("/api/checkout", json=payload)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Método de pagamento inválido", response.get_json()["error"])
+
+    def test_payment_config_includes_checkout_login_policy_flag(self):
+        response = self.client.get('/api/payments/config')
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertIn('checkout_login_required', payload)
+
     def test_payment_config_endpoint_exposes_gateway_and_public_key(self):
         response = self.client.get('/api/payments/config')
         self.assertEqual(response.status_code, 200)
