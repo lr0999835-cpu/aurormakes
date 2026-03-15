@@ -281,6 +281,7 @@ async function createOrderFromCart() {
     shipping_amount: shipping,
     discount_amount: discount,
     shipping_method: selectedShipping?.method_code || selectedShipping?.method_name || "",
+    shipping_quote_id: selectedShipping?.id || "",
     shipping_eta: selectedShipping?.shipping_eta || "",
     shipping_label: selectedShipping?.shipping_label || selectedShipping?.method_name || "",
     customer_address_data: getCustomerAddressData(),
