@@ -30,6 +30,8 @@ const CHECKOUT_STATE = {
   selectedAddressId: "new"
 };
 
+let CEP_AUTOCOMPLETE_TIMER = null;
+
 const BRAZIL_TIMEZONE = "America/Sao_Paulo";
 const PAYMENT_GATEWAY = "mercadopago";
 let PAYMENT_CONFIG = { gateway: PAYMENT_GATEWAY, mercado_pago_public_key: "", checkout_login_required: false };
@@ -119,10 +121,12 @@ function formatCep(value) {
   return `${digits.slice(0, 5)}-${digits.slice(5)}`;
 }
 
-async function calculateShippingByCep() {
+async function calculateShippingByCep({ silentInvalid = false } = {}) {
   const cep = normalizeCep(CHECKOUT_STATE.cep);
   if (cep.length !== 8) {
-    alert("Informe um CEP válido com 8 números.");
+    if (!silentInvalid) {
+      alert("Informe um CEP válido com 8 números.");
+    }
     return;
   }
 
@@ -167,7 +171,7 @@ async function calculateShippingByCep() {
 }
 
 function moveToStep(nextStep) {
-  CHECKOUT_STATE.step = Math.min(7, Math.max(1, nextStep));
+  CHECKOUT_STATE.step = Math.min(4, Math.max(1, nextStep));
   renderCartPage();
 }
 
@@ -175,9 +179,45 @@ function handleCheckoutInput(field, value, type = "text") {
   const normalized = type === "checkbox" ? Boolean(value) : value;
   if (field === "cep") {
     CHECKOUT_STATE[field] = formatCep(normalized);
+    triggerCepAutocomplete();
     return;
   }
   CHECKOUT_STATE[field] = normalized;
+}
+
+function triggerCepAutocomplete() {
+  clearTimeout(CEP_AUTOCOMPLETE_TIMER);
+  const cep = normalizeCep(CHECKOUT_STATE.cep);
+  if (cep.length !== 8) {
+    return;
+  }
+
+  CEP_AUTOCOMPLETE_TIMER = setTimeout(async () => {
+    await hydrateAddressByCep();
+    await calculateShippingByCep({ silentInvalid: true });
+  }, 250);
+}
+
+async function hydrateAddressByCep() {
+  const cep = normalizeCep(CHECKOUT_STATE.cep);
+  if (cep.length !== 8) return;
+
+  try {
+    const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const data = await response.json();
+    if (!response.ok || data.erro) {
+      return;
+    }
+
+    CHECKOUT_STATE.address = data.logradouro || CHECKOUT_STATE.address;
+    CHECKOUT_STATE.complement = data.complemento || CHECKOUT_STATE.complement;
+    CHECKOUT_STATE.district = data.bairro || CHECKOUT_STATE.district;
+    CHECKOUT_STATE.city = data.localidade || CHECKOUT_STATE.city;
+    CHECKOUT_STATE.state = (data.uf || CHECKOUT_STATE.state || "").toUpperCase();
+    renderCartPage();
+  } catch (_error) {
+    // Falha silenciosa para manter checkout fluido caso o serviço de CEP esteja indisponível.
+  }
 }
 
 function handleShippingSelection(id) {
@@ -360,14 +400,6 @@ function validateBeforeStep(step) {
     }
   }
 
-  if (step >= 3 && CHECKOUT_STATE.paymentMethod === "cartao") {
-    const validCard = CHECKOUT_STATE.cardName.trim() && CHECKOUT_STATE.cardNumber.replace(/\D/g, "").length >= 13 && CHECKOUT_STATE.cardExpiry.length === 5 && CHECKOUT_STATE.cardCvv.length >= 3;
-    if (!validCard) {
-      alert("Preencha os dados do cartão para continuar com o pagamento.");
-      return false;
-    }
-  }
-
   if (step >= 3) {
     const hasAddress = CHECKOUT_STATE.cep && CHECKOUT_STATE.address && CHECKOUT_STATE.number && CHECKOUT_STATE.district && CHECKOUT_STATE.city && CHECKOUT_STATE.state;
     if (!hasAddress) {
@@ -382,6 +414,14 @@ function validateBeforeStep(step) {
 
     if (!CHECKOUT_STATE.selectedShippingId) {
       alert("Selecione um método de frete.");
+      return false;
+    }
+  }
+
+  if (step >= 4 && CHECKOUT_STATE.paymentMethod === "cartao") {
+    const validCard = CHECKOUT_STATE.cardName.trim() && CHECKOUT_STATE.cardNumber.replace(/\D/g, "").length >= 13 && CHECKOUT_STATE.cardExpiry.length === 5 && CHECKOUT_STATE.cardCvv.length >= 3;
+    if (!validCard) {
+      alert("Preencha os dados do cartão para continuar com o pagamento.");
       return false;
     }
   }
@@ -409,7 +449,7 @@ async function createOrderFromCart() {
   const detailedCart = getDetailedCartItems();
   if (!detailedCart.length) throw new Error("Seu carrinho está vazio");
 
-  if (!validateBeforeStep(3)) {
+  if (!validateBeforeStep(4)) {
     throw new Error("Preencha os dados obrigatórios para finalizar.");
   }
 
@@ -464,10 +504,13 @@ async function createOrderFromCart() {
 
 async function checkoutNow() {
   try {
+    if (!validateBeforeStep(4)) {
+      return;
+    }
     const order = await createOrderFromCart();
     saveCart([]);
     updateCartCount();
-    CHECKOUT_STATE.step = 7;
+    CHECKOUT_STATE.step = 4;
     renderCartPage();
     const instructions = document.getElementById("checkout-instructions");
     if (instructions) instructions.textContent = buildPaymentInstructions(order);
@@ -477,7 +520,7 @@ async function checkoutNow() {
 }
 
 function renderStepIndicator() {
-  const labels = ["Carrinho", "Contato", "Entrega", "Frete", "Pagamento", "Confirmação", "Pagamento"];
+  const labels = ["Carrinho", "Entrega", "Pagamento"];
   return `<ol class="checkout-steps">${labels.map((label, index) => {
     const stepNumber = index + 1;
     const stateClass = CHECKOUT_STATE.step === stepNumber ? "is-active" : CHECKOUT_STATE.step > stepNumber ? "is-done" : "";
@@ -495,7 +538,7 @@ function renderShippingOptions() {
   }
 
   if (!CHECKOUT_STATE.shippingOptions.length) {
-    return '<p class="checkout-hint">Informe o CEP e clique em <strong>Calcular frete</strong> para visualizar os métodos.</p>';
+    return '<p class="checkout-hint">Digite seu CEP para carregar o endereço e visualizar os métodos de frete automaticamente.</p>';
   }
 
   return `<div class="shipping-options">${CHECKOUT_STATE.shippingOptions.map((option) => `
@@ -612,7 +655,7 @@ function renderStepContent(detailedCart, totals) {
           <div class="total"><span>Total</span><strong>${formatPrice(totals.total)}</strong></div>
         </div>
         <div class="checkout-actions">
-          <button class="checkout-btn" type="button" onclick="if (validateBeforeStep(2)) moveToStep(2)">Iniciar compra</button>
+          <button class="checkout-btn" type="button" onclick="moveToStep(2)">Continuar</button>
         </div>
       </div>`;
   }
@@ -620,20 +663,13 @@ function renderStepContent(detailedCart, totals) {
   if (step === 2) {
     return `
       <section class="checkout-card">
-        <h3>Contato</h3>
-        ${CHECKOUT_STATE.customerLoggedIn ? '<p class="checkout-hint">Dados preenchidos com sua conta. Você pode editar antes de continuar.</p>' : '<p class="checkout-hint">Preencha seus dados para avançar para pagamento.</p>'}
+        <h3>Entrega</h3>
+        ${CHECKOUT_STATE.customerLoggedIn ? '<p class="checkout-hint">Dados preenchidos com sua conta. Revise antes de continuar.</p>' : '<p class="checkout-hint">Preencha os dados de contato e endereço para seguir para o pagamento.</p>'}
         <div class="grid-2">
           <label>Nome completo<input value="${CHECKOUT_STATE.fullName}" oninput="handleCheckoutInput('fullName', this.value)"></label>
           <label>E-mail<input type="email" value="${CHECKOUT_STATE.email}" oninput="handleCheckoutInput('email', this.value)"></label>
           <label>Telefone<input value="${CHECKOUT_STATE.phone}" oninput="handleCheckoutInput('phone', this.value)"></label>
-        </div>
-        <label class="checkbox-line"><input type="checkbox" ${CHECKOUT_STATE.receiveNews ? "checked" : ""} onchange="handleCheckoutInput('receiveNews', this.checked, 'checkbox')">Receber ofertas e novidades por e-mail</label>
-      </section>
-
-      <section class="checkout-card">
-        <h3>Entrega</h3>
-        ${renderCustomerAddressSelector()}
-        <div class="grid-2">
+        <div class="full-width">${renderCustomerAddressSelector()}</div>
           <label>CEP<input value="${CHECKOUT_STATE.cep}" maxlength="9" placeholder="00000-000" oninput="handleCheckoutInput('cep', this.value)"></label>
           <div class="checkout-inline-actions">
             <button class="checkout-btn-outline" type="button" onclick="calculateShippingByCep()">Calcular frete</button>
@@ -645,75 +681,31 @@ function renderStepContent(detailedCart, totals) {
           <label>Bairro<input value="${CHECKOUT_STATE.district}" oninput="handleCheckoutInput('district', this.value)"></label>
           <label>Cidade<input value="${CHECKOUT_STATE.city}" oninput="handleCheckoutInput('city', this.value)"></label>
           <label>Estado<input value="${CHECKOUT_STATE.state}" maxlength="2" oninput="handleCheckoutInput('state', this.value.toUpperCase())"></label>
-          <label class="full-width">Referência<input value="${CHECKOUT_STATE.reference}" oninput="handleCheckoutInput('reference', this.value)"></label>
+          <label class="full-width checkbox-line"><input type="checkbox" ${CHECKOUT_STATE.receiveNews ? "checked" : ""} onchange="handleCheckoutInput('receiveNews', this.checked, 'checkbox')">Receber ofertas e novidades por e-mail</label>
         </div>
         <h4>Métodos de envio</h4>
         ${renderShippingOptions()}
         <div class="checkout-actions">
           <button class="checkout-btn-outline" type="button" onclick="moveToStep(1)">Voltar</button>
-          <button class="checkout-btn-primary" type="button" onclick="if (validateBeforeStep(2)) moveToStep(3)">Continuar para entrega</button>
+          <button class="checkout-btn-primary" type="button" onclick="if (validateBeforeStep(3)) moveToStep(3)">Continuar</button>
         </div>
       </section>`;
   }
 
   if (step === 3) {
     return `
-      <section class="checkout-card">
-        <h3>Seleção de frete</h3>
-        ${renderShippingOptions()}
-        <div class="checkout-actions">
-          <button class="checkout-btn-outline" type="button" onclick="moveToStep(2)">Voltar</button>
-          <button class="checkout-btn-primary" type="button" onclick="if (validateBeforeStep(3)) moveToStep(4)">Continuar para pagamento</button>
-        </div>
-      </section>
-    `;
-  }
-
-  if (step === 4) {
-    return `
       ${renderPaymentPanel()}
       <div class="checkout-actions">
-        <button class="checkout-btn-outline" type="button" onclick="moveToStep(3)">Voltar</button>
-        <button class="checkout-btn-primary" type="button" onclick="if (validateBeforeStep(3)) moveToStep(5)">Revisar pedido</button>
+        <button class="checkout-btn-outline" type="button" onclick="moveToStep(2)">Voltar</button>
+        <button class="checkout-btn-primary" type="button" onclick="checkoutNow()">Finalizar pedido</button>
       </div>
-    `;
-  }
-
-  if (step === 5) {
-    const selectedShipping = getSelectedShipping();
-    return `
-      <section class="checkout-card">
-        <h3>Confirmação do pedido</h3>
-        <p class="checkout-hint">Confira os dados de contato, entrega, frete e pagamento antes de concluir.</p>
-        <p><strong>Contato:</strong> ${CHECKOUT_STATE.fullName} · ${CHECKOUT_STATE.email} · ${CHECKOUT_STATE.phone}</p>
-        <p><strong>Entrega:</strong> ${formatAddressPayload()}</p>
-        <p><strong>Frete:</strong> ${selectedShipping ? `${selectedShipping.method_name} (${selectedShipping.shipping_eta})` : "Não selecionado"}</p>
-        <p><strong>Pagamento:</strong> ${CHECKOUT_STATE.paymentMethod}</p>
-        <div class="checkout-actions">
-          <button class="checkout-btn-outline" type="button" onclick="moveToStep(4)">Voltar</button>
-          <button class="checkout-btn" type="button" onclick="moveToStep(6)">Confirmar e iniciar pagamento</button>
-        </div>
-      </section>
-    `;
-  }
-
-  if (step === 6) {
-    return `
-      <section class="checkout-card">
-        <h3>Iniciar pagamento</h3>
-        <p class="checkout-hint">Ao confirmar, o pedido será criado e o pagamento será iniciado no método escolhido.</p>
-        <div class="checkout-actions">
-          <button class="checkout-btn-outline" type="button" onclick="moveToStep(5)">Voltar</button>
-          <button class="checkout-btn" type="button" onclick="checkoutNow()">Criar pedido e pagar</button>
-        </div>
-        <pre id="checkout-instructions" class="checkout-response"></pre>
-      </section>
     `;
   }
 
   return `
     <section class="checkout-card">
-      <h3>Pagamento iniciado</h3>
+      <h3>Pedido finalizado</h3>
+      <p class="checkout-hint">Recebemos seu pedido e iniciamos o fluxo de pagamento.</p>
       <pre id="checkout-instructions" class="checkout-response"></pre>
     </section>
   `;
