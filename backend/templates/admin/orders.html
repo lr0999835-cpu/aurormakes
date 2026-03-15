@@ -83,14 +83,25 @@
           <p><strong>Método de pagamento:</strong> {{ selected_order.payment_method or '-' }}</p>
           <p><strong>Método de envio:</strong> {{ selected_order.shipping_method or '-' }}</p>
           <p><strong>Status de envio:</strong> {{ selected_order.shipping_status or '-' }}</p>
+          <p><strong>Subtotal:</strong> R$ {{ '%.2f'|format(selected_order.subtotal or 0) }}</p>
+          <p><strong>Frete:</strong> R$ {{ '%.2f'|format(selected_order.shipping_amount or 0) }}</p>
+          <p><strong>Desconto:</strong> R$ {{ '%.2f'|format(selected_order.discount_amount or 0) }}</p>
+          <p><strong>Total:</strong> R$ {{ '%.2f'|format(selected_order.total or 0) }}</p>
         </div>
 
         <div class="details-group">
           <h3>Informações do cliente</h3>
+          <p><strong>ID cliente:</strong> {{ selected_order.customer_id or '-' }}</p>
           <p><strong>Nome:</strong> {{ selected_order.customer_name or '-' }}</p>
           <p><strong>Telefone:</strong> {{ selected_order.customer_phone or '-' }}</p>
           <p><strong>Endereço do cliente:</strong> {{ selected_order.customer_address or '-' }}</p>
           <p><strong>Endereço de entrega:</strong> {{ selected_order.customer_address or '-' }}</p>
+          {% if selected_order.customer_address_data %}
+            <details>
+              <summary>Endereço estruturado</summary>
+              <pre class="muted">{{ selected_order.customer_address_data|tojson(indent=2) }}</pre>
+            </details>
+          {% endif %}
         </div>
 
         <div class="details-group">
