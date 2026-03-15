@@ -44,6 +44,16 @@ class CheckoutFlowTestCase(unittest.TestCase):
                 "city": "Rio de Janeiro",
                 "state": "RJ",
             },
+            "payment": {
+                "payment_method": "cartao",
+                "payment_status": "pendente",
+                "payment_amount": 49.9,
+                "payment_gateway": "mercadopago",
+                "transaction_id": "",
+                "payment_payload": {"timezone": "America/Sao_Paulo"},
+                "created_at": "2026-01-01T10:00:00",
+                "updated_at": "2026-01-01T10:00:00"
+            },
             "items": items,
         }
         if camel_case:
@@ -71,6 +81,10 @@ class CheckoutFlowTestCase(unittest.TestCase):
         self.assertEqual(order["shipping_label"], "Correios")
         self.assertEqual(order["shipping_eta"], "2 a 4 dias úteis")
         self.assertEqual(order["customer_address_data"]["state"], "RJ")
+        self.assertIn("payment", order)
+        self.assertEqual(order["payment"]["payment_method"], "cartao")
+        self.assertIn("payment_gateway", order["payment"])
+        self.assertIn("payment_payload", order["payment"])
 
         orders_response = self.client.get("/api/orders", query_string={"customer_phone": "21999999999"})
         self.assertEqual(orders_response.status_code, 200)

@@ -51,15 +51,32 @@ def validate_webhook(request):
 
 
 def _payment_row_to_dict(row):
+    raw_payload = row["raw_payload"] or "{}"
+    try:
+        parsed_payload = json.loads(raw_payload)
+    except (TypeError, json.JSONDecodeError):
+        parsed_payload = {}
+    checkout_payload = parsed_payload.get("checkout_payment") if isinstance(parsed_payload, dict) else {}
+    if not isinstance(checkout_payload, dict):
+        checkout_payload = {}
+
+    amount = float(row["amount"] or 0)
+    status = row["status"]
+    payment_method = row["payment_method"]
+    gateway = row["gateway"]
     return {
         "id": int(row["id"]),
         "order_id": int(row["order_id"]) if row["order_id"] else None,
         "payment_id": row["payment_id"],
-        "gateway": row["gateway"],
+        "gateway": gateway,
+        "payment_gateway": gateway,
         "transaction_id": row["transaction_id"] or "",
-        "payment_method": row["payment_method"],
-        "amount": float(row["amount"] or 0),
-        "status": row["status"],
+        "payment_method": payment_method,
+        "amount": amount,
+        "payment_amount": amount,
+        "status": status,
+        "payment_status": status,
+        "payment_payload": checkout_payload,
         "pix_qr_code": row["pix_qr_code"] or "",
         "pix_copy_paste": row["pix_copy_paste"] or "",
         "boleto_barcode": row["boleto_barcode"] or "",
@@ -73,7 +90,7 @@ def _payment_row_to_dict(row):
     }
 
 
-def create_payment_for_order(company_id: int, order: dict, method: str, customer: dict, card_data: dict | None = None):
+def create_payment_for_order(company_id: int, order: dict, method: str, customer: dict, card_data: dict | None = None, checkout_payment: dict | None = None):
     method = (method or "").strip().lower()
     aliases = {"card": "cartao", "credito": "cartao", "credit_card": "cartao", "boleto_bancario": "boleto"}
     method = aliases.get(method, method)
@@ -81,6 +98,8 @@ def create_payment_for_order(company_id: int, order: dict, method: str, customer
         raise ValueError("Método de pagamento inválido. Use pix, cartao ou boleto.")
 
     gateway = build_gateway()
+    checkout_payment = checkout_payment if isinstance(checkout_payment, dict) else {}
+    payment_gateway = str(checkout_payment.get("payment_gateway") or "mercadopago").strip().lower() or "mercadopago"
     metadata = {
         "order_id": order["id"],
         "order_number": f"#{order['id']}",
@@ -120,8 +139,8 @@ def create_payment_for_order(company_id: int, order: dict, method: str, customer
             (
                 int(company_id), int(order["id"]),
                 int(company_id), payment_id, int(order["id"]), float(order["total"]), payment_status,
-                method, customer.get("phone") or order.get("customer_phone") or "", json.dumps(gateway_response.payload, ensure_ascii=False),
-                "mercadopago", gateway_response.transaction_id, json.dumps(gateway_response.payload, ensure_ascii=False),
+                method, customer.get("phone") or order.get("customer_phone") or "", json.dumps({"gateway_payload": gateway_response.payload, "checkout_payment": checkout_payment}, ensure_ascii=False),
+                payment_gateway, gateway_response.transaction_id, json.dumps(gateway_response.payload, ensure_ascii=False),
                 gateway_response.qr_code_base64, gateway_response.qr_code_text, gateway_response.boleto_barcode,
                 gateway_response.boleto_url, gateway_response.expires_at,
                 payment_status, now_iso_brt(), payment_status, now_iso_brt(),

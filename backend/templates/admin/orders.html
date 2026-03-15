@@ -117,6 +117,11 @@
           <p><strong>Aprovação:</strong> {{ selected_order.approved_at|datetime_br }}</p>
           <p><strong>Cancelamento:</strong> {{ selected_order.cancelled_at|datetime_br }}</p>
           {% if selected_order.payment %}
+            <p><strong>Gateway:</strong> {{ selected_order.payment.payment_gateway or '-' }}</p>
+            <p><strong>Valor do pagamento:</strong> R$ {{ '%.2f'|format(selected_order.payment.payment_amount or 0) }}</p>
+            <p><strong>Atualizado em:</strong> {{ selected_order.payment.updated_at|datetime_br }}</p>
+          {% endif %}
+          {% if selected_order.payment %}
             {% if selected_order.payment.payment_method == 'pix' and selected_order.payment.status in ['pendente','aguardando_pagamento'] %}
               <p><strong>PIX copia e cola:</strong> {{ selected_order.payment.pix_copy_paste or '-' }}</p>
             {% endif %}
