@@ -33,6 +33,7 @@ class CheckoutFlowTestCase(unittest.TestCase):
             "payment_status": "paid",
             "payment_method": "card",
             "shipping_method": "correios_sedex",
+            "shipping_quote_id": "correios-sedex",
             "shipping_eta": "2 a 4 dias úteis",
             "shipping_label": "Correios",
             "customer_address_data": {
@@ -54,6 +55,7 @@ class CheckoutFlowTestCase(unittest.TestCase):
                 "paymentStatus": "paid",
                 "paymentMethod": "pix",
                 "shippingMethod": "correios_pac",
+                "shippingQuoteId": "correios-pac",
                 "shippingEta": "5 a 10 dias úteis",
                 "shippingLabel": "Correios",
                 "items": items,
@@ -93,6 +95,24 @@ class CheckoutFlowTestCase(unittest.TestCase):
         orders_response = self.client.get("/api/orders", query_string={"customer_phone": "21888888888"})
         orders = orders_response.get_json()
         self.assertGreaterEqual(len(orders), 1)
+
+
+    def test_checkout_rejects_invalid_shipping_method_for_cep(self):
+        payload = self._checkout_payload()
+        payload["shipping_method"] = "metodo_inexistente"
+        payload["shipping_quote_id"] = "metodo_inexistente"
+
+        response = self.client.post("/api/checkout", json=payload)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Método de frete inválido", response.get_json()["error"])
+
+    def test_checkout_rejects_shipping_price_tampering(self):
+        payload = self._checkout_payload()
+        payload["shipping_amount"] = 0.01
+
+        response = self.client.post("/api/checkout", json=payload)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Valor de frete divergente", response.get_json()["error"])
 
     def test_shipping_quotes_api_returns_correios_and_partner_options(self):
         response = self.client.post(

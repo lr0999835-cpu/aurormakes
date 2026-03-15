@@ -5,7 +5,7 @@ import logging
 from database import get_connection
 from models import Order, Product
 from payment_services.payments.service import create_payment_for_order, get_payment_events
-from shipping_services import normalize_order_address_data
+from shipping_services import normalize_order_address_data, resolve_shipping_quote
 
 
 REQUIRED_FIELDS = ["name", "category", "price", "cost", "stock", "sku"]
@@ -17,6 +17,39 @@ LOW_STOCK_LIMIT = 3
 
 logger = logging.getLogger(__name__)
 
+
+def _apply_checkout_shipping_details(payload):
+    data = dict(payload or {})
+    selected_method = (data.get("shipping_method") or data.get("shippingMethod") or "").strip()
+    selected_quote_id = (data.get("shipping_quote_id") or data.get("shippingQuoteId") or "").strip()
+
+    if not selected_method and not selected_quote_id:
+        return data
+
+    raw_address = data.get("customer_address_data") if isinstance(data.get("customer_address_data"), dict) else data.get("customerAddressData")
+    address_data = raw_address if isinstance(raw_address, dict) else {}
+    cep = address_data.get("cep") or data.get("cep") or ""
+    if not cep:
+        return data
+
+    shipping_payload = {
+        "cep": cep,
+        "subtotal": data.get("subtotal") or data.get("subtotalAmount") or 0,
+        "items": data.get("items") if isinstance(data.get("items"), list) else [],
+    }
+    selected_quote = resolve_shipping_quote(shipping_payload, selected_method, selected_quote_id)
+
+    resolved_amount = float(selected_quote.get("shipping_price") or 0)
+    provided_amount = float(data.get("shipping_amount") or data.get("shippingAmount") or resolved_amount)
+
+    if abs(provided_amount - resolved_amount) > 0.05:
+        raise ValueError("Valor de frete divergente da cotação atual para o CEP informado.")
+
+    data["shipping_amount"] = resolved_amount
+    data["shipping_method"] = selected_quote.get("method_code") or selected_method
+    data["shipping_eta"] = selected_quote.get("shipping_eta") or data.get("shipping_eta") or data.get("shippingEta") or ""
+    data["shipping_label"] = selected_quote.get("shipping_label") or data.get("shipping_label") or data.get("shippingLabel") or ""
+    return data
 
 
 def _normalize_payload(payload):
@@ -552,6 +585,7 @@ def register_payment_event(company_id, payload):
 
 
 def create_checkout(company_id, payload):
+    payload = _apply_checkout_shipping_details(payload)
     normalized = _normalize_order_payload(payload)
     order = create_order(company_id, normalized)
 
