@@ -1,6 +1,8 @@
 from flask import Blueprint, g, jsonify, request
 import logging
 
+from config import MERCADO_PAGO_PUBLIC_KEY, PAYMENT_GATEWAY
+
 from auth import api_auth_required, load_current_customer, tenant_for_request
 from shipping_services import calculate_shipping_quotes
 from services import (
@@ -128,6 +130,22 @@ def post_shipping_quotes():
         return jsonify({"error": str(exc)}), 400
 
     return jsonify({"cep": payload.get("cep") or "", "quotes": quotes}), 200
+
+
+
+
+@operations_bp.get("/payments/config")
+def get_payment_config():
+    company_id = tenant_for_request()
+    if not company_id:
+        return jsonify({"error": "Empresa inválida"}), 400
+    return jsonify({
+        "gateway": (PAYMENT_GATEWAY or "mercadopago").strip().lower(),
+        "mercado_pago_public_key": MERCADO_PAGO_PUBLIC_KEY,
+        "methods": ["pix", "cartao", "boleto"],
+        "currency": "BRL",
+        "timezone": "America/Sao_Paulo",
+    })
 
 
 @operations_bp.post("/payments/webhook")

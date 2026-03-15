@@ -32,6 +32,51 @@ const CHECKOUT_STATE = {
 
 const BRAZIL_TIMEZONE = "America/Sao_Paulo";
 const PAYMENT_GATEWAY = "mercadopago";
+let PAYMENT_CONFIG = { gateway: PAYMENT_GATEWAY, mercado_pago_public_key: "" };
+let MERCADO_PAGO_CLIENT = null;
+
+
+
+async function loadPaymentConfig() {
+  try {
+    const response = await fetch('/api/payments/config');
+    const data = await response.json();
+    if (response.ok && data) {
+      PAYMENT_CONFIG = data;
+      if (window.MercadoPago && data.mercado_pago_public_key) {
+        MERCADO_PAGO_CLIENT = new window.MercadoPago(data.mercado_pago_public_key, { locale: 'pt-BR' });
+      }
+    }
+  } catch (_error) {
+    PAYMENT_CONFIG = { gateway: PAYMENT_GATEWAY, mercado_pago_public_key: '' };
+  }
+}
+
+async function buildCardToken() {
+  if (CHECKOUT_STATE.paymentMethod !== 'cartao') return null;
+  if (!MERCADO_PAGO_CLIENT) {
+    throw new Error('Pagamento com cartão indisponível no momento. Configure MERCADO_PAGO_PUBLIC_KEY.');
+  }
+
+  const [expMonth, expYear] = CHECKOUT_STATE.cardExpiry.split('/');
+  const payload = {
+    cardNumber: CHECKOUT_STATE.cardNumber.replace(/\s/g, ''),
+    cardholderName: CHECKOUT_STATE.cardName.trim(),
+    cardExpirationMonth: expMonth,
+    cardExpirationYear: expYear,
+    securityCode: CHECKOUT_STATE.cardCvv,
+    identificationType: 'CPF',
+    identificationNumber: '00000000000'
+  };
+  const tokenData = await MERCADO_PAGO_CLIENT.createCardToken(payload);
+  return {
+    token: tokenData?.id || '',
+    payment_method_id: tokenData?.payment_method_id || 'visa',
+    installments: Number(CHECKOUT_STATE.installments || '1'),
+    document_type: 'CPF',
+    document_number: '00000000000'
+  };
+}
 
 function removeFromCart(productId) { removeProductFromCart(productId); updateCartCount(); renderCartPage(); }
 function increaseCartQuantity(productId) { changeProductQuantity(productId, 1); updateCartCount(); renderCartPage(); }
@@ -372,13 +417,7 @@ async function createOrderFromCart() {
   };
 
   if (CHECKOUT_STATE.paymentMethod === "cartao") {
-    payload.card = {
-      holder_name: CHECKOUT_STATE.cardName.trim(),
-      number: CHECKOUT_STATE.cardNumber.replace(/\s/g, ""),
-      expiry: CHECKOUT_STATE.cardExpiry,
-      cvv: CHECKOUT_STATE.cardCvv,
-      installments: Number(CHECKOUT_STATE.installments || "1")
-    };
+    payload.card = await buildCardToken();
   }
 
   const response = await fetch("/api/checkout", {
@@ -682,6 +721,7 @@ window.handlePaymentSelection = handlePaymentSelection;
 window.applyCoupon = applyCoupon;
 window.handleAddressSelection = handleAddressSelection;
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  await loadPaymentConfig();
   preloadCustomerData();
 });

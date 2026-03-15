@@ -9,10 +9,37 @@ from config import PAYMENT_WEBHOOK_HEADER, PAYMENT_WEBHOOK_SECRET, STORE_PUBLIC_
 from database import get_connection
 from payment_services.payments.gateways import build_gateway
 
+
 logger = logging.getLogger(__name__)
 BRAZIL_TZ = ZoneInfo("America/Sao_Paulo")
 PAYMENT_STATUSES = {"pendente", "aguardando_pagamento", "pago", "aprovado", "recusado", "cancelado", "estornado", "expirado"}
 METHODS = {"pix", "cartao", "boleto"}
+
+
+
+def _extract_payment_identifier(payload: dict):
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    payment_id = str(
+        payload.get("payment_id")
+        or payload.get("paymentId")
+        or data.get("id")
+        or payload.get("id")
+        or ""
+    ).strip()
+    return payment_id
+
+
+def _extract_status(payload: dict, current_status: str = "pendente"):
+    candidates = [
+        payload.get("status"),
+        payload.get("action"),
+        payload.get("type"),
+    ]
+    for candidate in candidates:
+        normalized = normalize_payment_status(str(candidate or ""))
+        if normalized != "pendente" or str(candidate or "").strip().lower() in {"pending", "pendente"}:
+            return normalized
+    return normalize_payment_status(current_status)
 
 
 def now_iso_brt():
@@ -187,32 +214,62 @@ def create_payment_for_order(company_id: int, order: dict, method: str, customer
 
 
 def process_webhook_event(company_id: int, payload: dict):
-    payment_id = str(payload.get("payment_id") or payload.get("data", {}).get("id") or payload.get("id") or "").strip()
+    payment_id = _extract_payment_identifier(payload)
     if not payment_id:
         raise ValueError("payment_id é obrigatório no webhook")
-
-    status = normalize_payment_status(payload.get("status") or payload.get("action") or "pendente")
-    transaction_id = str(payload.get("transaction_id") or payload.get("id") or payment_id)
 
     with get_connection() as conn:
         payment = conn.execute(
             "SELECT * FROM payments WHERE company_id = ? AND (payment_id = ? OR transaction_id = ?) ORDER BY id DESC LIMIT 1",
-            (int(company_id), payment_id, transaction_id),
+            (int(company_id), payment_id, payment_id),
         ).fetchone()
         if not payment:
             raise ValueError("Pagamento não encontrado")
+
+        gateway_details = {}
+        gateway_name = (payment["gateway"] or "mercadopago").strip().lower()
+        if gateway_name == "mercadopago":
+            gateway = build_gateway()
+            gateway_details = gateway.get_payment(payment["transaction_id"] or payment_id)
+
+        status = _extract_status(gateway_details if gateway_details else payload, payment["status"])
+        transaction_id = str(
+            (gateway_details.get("id") if isinstance(gateway_details, dict) else "")
+            or payload.get("transaction_id")
+            or payload.get("id")
+            or payment["transaction_id"]
+            or payment_id
+        )
+
+        webhook_payload = {
+            "event": payload,
+            "gateway_details": gateway_details,
+        }
 
         order_id = int(payment["order_id"])
         now = now_iso_brt()
         conn.execute(
             """
             UPDATE payments
-            SET status = ?, transaction_id = ?, webhook_payload = ?, updated_at = ?,
+            SET status = ?, transaction_id = ?, gateway_response = ?, webhook_payload = ?, updated_at = ?,
                 approved_at = CASE WHEN ? IN ('pago','aprovado') THEN ? ELSE approved_at END,
-                cancelled_at = CASE WHEN ? IN ('cancelado','estornado') THEN ? ELSE cancelled_at END
+                cancelled_at = CASE WHEN ? IN ('cancelado','estornado','expirado') THEN ? ELSE cancelled_at END,
+                expires_at = COALESCE(?, expires_at)
             WHERE id = ?
             """,
-            (status, transaction_id, json.dumps(payload, ensure_ascii=False), now, status, now, status, now, int(payment["id"])),
+            (
+                status,
+                transaction_id,
+                json.dumps(gateway_details or {}, ensure_ascii=False),
+                json.dumps(webhook_payload, ensure_ascii=False),
+                now,
+                status,
+                now,
+                status,
+                now,
+                (gateway_details.get("date_of_expiration") if isinstance(gateway_details, dict) else None),
+                int(payment["id"]),
+            ),
         )
         conn.execute(
             """
@@ -220,7 +277,7 @@ def process_webhook_event(company_id: int, payload: dict):
             SET payment_status = ?, transaction_id = ?,
                 status = CASE WHEN ? IN ('pago','aprovado') THEN 'aprovado' WHEN ? IN ('recusado','cancelado','estornado','expirado') THEN 'cancelado' ELSE status END,
                 approved_at = CASE WHEN ? IN ('pago','aprovado') THEN ? ELSE approved_at END,
-                cancelled_at = CASE WHEN ? IN ('cancelado','estornado') THEN ? ELSE cancelled_at END,
+                cancelled_at = CASE WHEN ? IN ('cancelado','estornado','expirado') THEN ? ELSE cancelled_at END,
                 updated_at = ?
             WHERE company_id = ? AND id = ?
             """,
@@ -231,7 +288,7 @@ def process_webhook_event(company_id: int, payload: dict):
             INSERT INTO payment_events (company_id, order_id, payment_id, event_type, status, payload, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (int(company_id), order_id, payment_id, "webhook", status, json.dumps(payload, ensure_ascii=False), now),
+            (int(company_id), order_id, payment_id, "webhook", status, json.dumps(webhook_payload, ensure_ascii=False), now),
         )
         conn.commit()
         result = conn.execute("SELECT * FROM payments WHERE id = ?", (int(payment["id"]),)).fetchone()
