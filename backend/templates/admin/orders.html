@@ -119,6 +119,8 @@
           {% if selected_order.payment %}
             <p><strong>Gateway:</strong> {{ selected_order.payment.payment_gateway or '-' }}</p>
             <p><strong>Valor do pagamento:</strong> R$ {{ '%.2f'|format(selected_order.payment.payment_amount or 0) }}</p>
+            <p><strong>Criado em:</strong> {{ selected_order.payment.created_at|datetime_br }}</p>
+            <p><strong>Aprovado em:</strong> {{ selected_order.payment.approved_at|datetime_br }}</p>
             <p><strong>Atualizado em:</strong> {{ selected_order.payment.updated_at|datetime_br }}</p>
           {% endif %}
           {% if selected_order.payment %}
@@ -129,6 +131,12 @@
               <p><strong>Linha digitável:</strong> {{ selected_order.payment.boleto_barcode or '-' }}</p>
               {% if selected_order.payment.boleto_url %}<p><a class="btn" href="{{ selected_order.payment.boleto_url }}" target="_blank">Visualizar boleto</a></p>{% endif %}
             {% endif %}
+          {% endif %}
+          {% if selected_order.payment and selected_order.payment.payment_payload %}
+            <details>
+              <summary>Detalhes do pagamento</summary>
+              <pre class="muted">{{ selected_order.payment.payment_payload|tojson(indent=2) }}</pre>
+            </details>
           {% endif %}
           <h4>Histórico</h4>
           <ul>

@@ -165,6 +165,7 @@ Também é possível criar via SQL/seed preenchendo `users.company_id`, `users.e
 ```bash
 PAYMENT_GATEWAY=mercadopago
 MERCADO_PAGO_ACCESS_TOKEN=APP_USR-xxxx
+MERCADO_PAGO_PUBLIC_KEY=APP_USR-xxxx
 PAYMENT_GATEWAY_BASE_URL=https://api.mercadopago.com
 PAYMENT_GATEWAY_TIMEOUT_SECONDS=20
 PAYMENT_WEBHOOK_SECRET=seu-segredo-webhook

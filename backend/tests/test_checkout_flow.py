@@ -144,6 +144,16 @@ class CheckoutFlowTestCase(unittest.TestCase):
         self.assertIn("correios-sedex", ids)
         self.assertIn("entrega-afiliada", ids)
 
+
+    def test_payment_config_endpoint_exposes_gateway_and_public_key(self):
+        response = self.client.get('/api/payments/config')
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload['gateway'], 'mercadopago')
+        self.assertIn('pix', payload['methods'])
+        self.assertEqual(payload['currency'], 'BRL')
+        self.assertEqual(payload['timezone'], 'America/Sao_Paulo')
+
     def test_webhook_confirmed_payment_updates_existing_order(self):
         response = self.client.post("/api/orders", json=self._checkout_payload())
         self.assertEqual(response.status_code, 201)
@@ -164,6 +174,26 @@ class CheckoutFlowTestCase(unittest.TestCase):
 
         orders = self.client.get("/api/orders", query_string={"customer_phone": order["customer_phone"]}).get_json()
         self.assertEqual(orders[0]["payment_status"], "paid")
+
+
+    def test_webhook_refunded_updates_payment_to_estornado(self):
+        response = self.client.post('/api/checkout', json=self._checkout_payload())
+        self.assertEqual(response.status_code, 201)
+        order = response.get_json()
+        payment_id = order.get('payment', {}).get('payment_id')
+        self.assertTrue(payment_id)
+
+        webhook_refund = self.client.post(
+            '/api/payments/webhook',
+            json={
+                'payment_id': payment_id,
+                'action': 'refunded',
+                'transaction_id': payment_id,
+            },
+        )
+        self.assertEqual(webhook_refund.status_code, 200)
+        payment = webhook_refund.get_json()
+        self.assertEqual(payment['payment_status'], 'estornado')
 
     def test_webhook_paid_creates_fallback_order_when_missing(self):
         response = self.client.post(

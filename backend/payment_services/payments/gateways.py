@@ -35,6 +35,10 @@ class PaymentGateway(ABC):
     def create_payment(self, *, amount_brl: float, description: str, method: str, customer: dict, metadata: dict, card_data: dict | None = None):
         raise NotImplementedError
 
+    @abstractmethod
+    def get_payment(self, transaction_id: str):
+        raise NotImplementedError
+
 
 class MercadoPagoGateway(PaymentGateway):
     def __init__(self, access_token: str, base_url: str | None = None, timeout: int = 15):
@@ -52,6 +56,19 @@ class MercadoPagoGateway(PaymentGateway):
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json",
                 "X-Idempotency-Key": str(payload.get("external_reference") or payload.get("description") or "aurora-makes"),
+            },
+        )
+        with urllib.request.urlopen(req, timeout=self.timeout) as response:
+            body = response.read().decode("utf-8")
+            return json.loads(body)
+
+    def _get(self, endpoint: str):
+        req = urllib.request.Request(
+            f"{self.base_url}{endpoint}",
+            method="GET",
+            headers={
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json",
             },
         )
         with urllib.request.urlopen(req, timeout=self.timeout) as response:
@@ -177,6 +194,15 @@ class MercadoPagoGateway(PaymentGateway):
                 error_message="Não foi possível processar o pagamento no momento.",
             )
 
+    def get_payment(self, transaction_id: str):
+        if not self.access_token or not str(transaction_id or "").strip():
+            return {}
+        try:
+            return self._get(f"/v1/payments/{transaction_id}")
+        except Exception:
+            logger.exception("Falha ao consultar pagamento no Mercado Pago")
+            return {}
+
 
 class StripeGateway(PaymentGateway):
     def create_payment(self, *, amount_brl: float, description: str, method: str, customer: dict, metadata: dict, card_data: dict | None = None):
@@ -188,6 +214,10 @@ class StripeGateway(PaymentGateway):
             payload={"error": "stripe_not_implemented", "has_secret": bool(STRIPE_SECRET_KEY)},
             error_message="Stripe ainda não está habilitado neste deploy.",
         )
+
+    def get_payment(self, transaction_id: str):
+        logger.warning("Stripe gateway não implementado para consulta de pagamentos.")
+        return {}
 
 
 def build_gateway() -> PaymentGateway:
