@@ -597,7 +597,8 @@ def create_checkout(company_id, payload):
     card_data = payload.get("card") if isinstance(payload.get("card"), dict) else None
     payment_method = normalized["payment_method"] or "pix"
 
-    payment_result = create_payment_for_order(company_id, order, payment_method, customer, card_data=card_data)
+    checkout_payment = payload.get("payment") if isinstance(payload.get("payment"), dict) else None
+    payment_result = create_payment_for_order(company_id, order, payment_method, customer, card_data=card_data, checkout_payment=checkout_payment)
     if not payment_result.get("success") and normalized.get("payment_status") in {"paid", "pago", "aprovado"}:
         register_payment_event(company_id, {
             "payment_id": f"compat_{order['id']}",
@@ -685,11 +686,26 @@ def get_order(company_id, order_id):
     with get_connection() as conn:
         payment_row = conn.execute("SELECT * FROM payments WHERE company_id = ? AND order_id = ? ORDER BY id DESC LIMIT 1", (int(company_id), order_id)).fetchone()
     if payment_row:
+        payment_payload = {}
+        raw_payload = payment_row["raw_payload"] if "raw_payload" in payment_row.keys() else "{}"
+        try:
+            parsed_payload = json.loads(raw_payload or "{}")
+            if isinstance(parsed_payload, dict):
+                payment_payload = parsed_payload.get("checkout_payment") if isinstance(parsed_payload.get("checkout_payment"), dict) else parsed_payload
+        except (TypeError, json.JSONDecodeError):
+            payment_payload = {}
+
         order["payment"] = {
             "payment_id": payment_row["payment_id"],
-            "transaction_id": payment_row["transaction_id"] if "transaction_id" in payment_row.keys() else "",
-            "status": payment_row["status"],
             "payment_method": payment_row["payment_method"],
+            "payment_status": payment_row["status"],
+            "status": payment_row["status"],
+            "payment_amount": float(payment_row["amount"] or 0),
+            "payment_gateway": payment_row["gateway"] if "gateway" in payment_row.keys() else "mercadopago",
+            "transaction_id": payment_row["transaction_id"] if "transaction_id" in payment_row.keys() else "",
+            "payment_payload": payment_payload,
+            "created_at": payment_row["created_at"],
+            "updated_at": payment_row["updated_at"],
             "pix_qr_code": payment_row["pix_qr_code"] if "pix_qr_code" in payment_row.keys() else "",
             "pix_copy_paste": payment_row["pix_copy_paste"] if "pix_copy_paste" in payment_row.keys() else "",
             "boleto_barcode": payment_row["boleto_barcode"] if "boleto_barcode" in payment_row.keys() else "",

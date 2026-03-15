@@ -30,6 +30,9 @@ const CHECKOUT_STATE = {
   selectedAddressId: "new"
 };
 
+const BRAZIL_TIMEZONE = "America/Sao_Paulo";
+const PAYMENT_GATEWAY = "mercadopago";
+
 function removeFromCart(productId) { removeProductFromCart(productId); updateCartCount(); renderCartPage(); }
 function increaseCartQuantity(productId) { changeProductQuantity(productId, 1); updateCartCount(); renderCartPage(); }
 function decreaseCartQuantity(productId) { changeProductQuantity(productId, -1); updateCartCount(); renderCartPage(); }
@@ -139,7 +142,74 @@ function handleShippingSelection(id) {
 
 function handlePaymentSelection(paymentMethod) {
   CHECKOUT_STATE.paymentMethod = paymentMethod;
+  if (paymentMethod !== "cartao") {
+    CHECKOUT_STATE.cardName = "";
+    CHECKOUT_STATE.cardNumber = "";
+    CHECKOUT_STATE.cardExpiry = "";
+    CHECKOUT_STATE.cardCvv = "";
+    CHECKOUT_STATE.installments = "1";
+  }
   renderCartPage();
+}
+
+function formatCardNumber(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 16);
+  return digits.replace(/(.{4})/g, "$1 ").trim();
+}
+
+function formatCardExpiry(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+}
+
+function formatCardCvv(value) {
+  return String(value || "").replace(/\D/g, "").slice(0, 4);
+}
+
+function buildPaymentPayload(totals) {
+  const now = new Date().toLocaleString("sv-SE", { timeZone: BRAZIL_TIMEZONE }).replace(" ", "T");
+  const payload = {
+    payment_method: CHECKOUT_STATE.paymentMethod,
+    payment_status: "pendente",
+    payment_amount: totals.total,
+    payment_gateway: PAYMENT_GATEWAY,
+    transaction_id: "",
+    payment_payload: {
+      timezone: BRAZIL_TIMEZONE,
+      customer_message: "Pagamento aguardando confirmação.",
+    },
+    created_at: now,
+    updated_at: now,
+  };
+
+  if (CHECKOUT_STATE.paymentMethod === "pix") {
+    payload.payment_payload.pix = {
+      qr_code: "",
+      copy_paste: "",
+      discount_amount: totals.discount,
+      confirmation_message: "Após confirmar o pedido, você verá o QR Code e o código Copia e Cola.",
+    };
+  }
+
+  if (CHECKOUT_STATE.paymentMethod === "cartao") {
+    payload.payment_payload.card = {
+      holder_name: CHECKOUT_STATE.cardName.trim(),
+      masked_number: formatCardNumber(CHECKOUT_STATE.cardNumber).replace(/\d(?=\d{4})/g, "•"),
+      expiry: CHECKOUT_STATE.cardExpiry,
+      installments: Number(CHECKOUT_STATE.installments || "1"),
+    };
+  }
+
+  if (CHECKOUT_STATE.paymentMethod === "boleto") {
+    payload.payment_payload.boleto = {
+      barcode: "",
+      boleto_url: "",
+      instructions: "Boleto será gerado após confirmação e pode levar até 2 dias úteis para compensar.",
+    };
+  }
+
+  return payload;
 }
 
 function applyCoupon() {
@@ -227,6 +297,14 @@ function validateBeforeStep(step) {
     }
   }
 
+  if (step >= 3 && CHECKOUT_STATE.paymentMethod === "cartao") {
+    const validCard = CHECKOUT_STATE.cardName.trim() && CHECKOUT_STATE.cardNumber.replace(/\D/g, "").length >= 13 && CHECKOUT_STATE.cardExpiry.length === 5 && CHECKOUT_STATE.cardCvv.length >= 3;
+    if (!validCard) {
+      alert("Preencha os dados do cartão para continuar com o pagamento.");
+      return false;
+    }
+  }
+
   if (step >= 3) {
     const hasAddress = CHECKOUT_STATE.cep && CHECKOUT_STATE.address && CHECKOUT_STATE.number && CHECKOUT_STATE.district && CHECKOUT_STATE.city && CHECKOUT_STATE.state;
     if (!hasAddress) {
@@ -269,6 +347,7 @@ async function createOrderFromCart() {
 
   const { subtotal, shipping, discount } = getOrderTotals();
   const selectedShipping = getSelectedShipping();
+  const payment = buildPaymentPayload({ subtotal, shipping, discount, total: Math.max(0, subtotal + shipping - discount) });
 
   const payload = {
     customer_name: CHECKOUT_STATE.fullName.trim(),
@@ -285,6 +364,7 @@ async function createOrderFromCart() {
     shipping_eta: selectedShipping?.shipping_eta || "",
     shipping_label: selectedShipping?.shipping_label || selectedShipping?.method_name || "",
     customer_address_data: getCustomerAddressData(),
+    payment,
     items: detailedCart.map((item) => ({
       product_id: item.id,
       quantity: item.quantidade
@@ -382,24 +462,25 @@ function renderPaymentPanel() {
   const optionCard = (method, title, description) => `
     <label class="payment-option ${CHECKOUT_STATE.paymentMethod === method ? "selected" : ""}">
       <input type="radio" name="payment-method" ${CHECKOUT_STATE.paymentMethod === method ? "checked" : ""} onchange="handlePaymentSelection('${method}')" />
-      <div>
+      <div class="payment-option-content">
         <strong>${title}</strong>
         <small>${description}</small>
-      </div>
+      </div><span class="payment-chevron">›</span>
     </label>
   `;
 
   let dynamicPanel = '<p class="checkout-hint">Selecione a forma de pagamento para continuar.</p>';
   if (CHECKOUT_STATE.paymentMethod === "pix") {
-    dynamicPanel = '<div class="payment-note"><strong>Pagamento via PIX</strong><p>Após confirmar o pedido, exibiremos o QR Code e o código copia e cola para pagamento instantâneo.</p></div>';
+    const totals = getOrderTotals();
+    dynamicPanel = `<div class="payment-note payment-note-pix"><strong>Pagamento via PIX</strong><p>Após confirmar o pedido, exibiremos o QR Code e o código copia e cola para pagamento instantâneo.</p><div class="pix-preview"><div class="pix-qr-placeholder">QR Code do PIX</div><div><p><strong>Código Copia e Cola</strong></p><code>Será gerado após a confirmação do pedido.</code><p class="checkout-hint">Confirmação automática em poucos segundos após o pagamento.</p></div></div><p class="pix-discount-inline">Ou ${formatPrice(Math.max(0, totals.total - totals.subtotal * 0.05))} com Pix</p></div>`;
   }
   if (CHECKOUT_STATE.paymentMethod === "cartao") {
     dynamicPanel = `
       <div class="grid-2 payment-fields">
         <label>Nome no cartão<input value="${CHECKOUT_STATE.cardName}" oninput="handleCheckoutInput('cardName', this.value)"></label>
-        <label>Número do cartão<input value="${CHECKOUT_STATE.cardNumber}" maxlength="19" oninput="handleCheckoutInput('cardNumber', this.value)"></label>
-        <label>Validade (MM/AA)<input value="${CHECKOUT_STATE.cardExpiry}" maxlength="5" oninput="handleCheckoutInput('cardExpiry', this.value)"></label>
-        <label>CVV<input value="${CHECKOUT_STATE.cardCvv}" maxlength="4" oninput="handleCheckoutInput('cardCvv', this.value)"></label>
+        <label>Número do cartão<input value="${CHECKOUT_STATE.cardNumber}" maxlength="19" inputmode="numeric" placeholder="0000 0000 0000 0000" oninput="handleCheckoutInput('cardNumber', formatCardNumber(this.value))"></label>
+        <label>Validade (MM/AA)<input value="${CHECKOUT_STATE.cardExpiry}" maxlength="5" inputmode="numeric" placeholder="MM/AA" oninput="handleCheckoutInput('cardExpiry', formatCardExpiry(this.value))"></label>
+        <label>CVV<input value="${CHECKOUT_STATE.cardCvv}" maxlength="4" inputmode="numeric" placeholder="000" oninput="handleCheckoutInput('cardCvv', formatCardCvv(this.value))"></label>
         <label>Parcelas
           <select onchange="handleCheckoutInput('installments', this.value)">
             ${[1, 2, 3, 4, 5, 6].map((installment) => `<option value="${installment}" ${CHECKOUT_STATE.installments === String(installment) ? "selected" : ""}>${installment}x ${installment === 1 ? "sem juros" : "no cartão"}</option>`).join("")}
@@ -412,9 +493,9 @@ function renderPaymentPanel() {
   }
 
   return `<section class="checkout-card"><h3>Pagamento</h3><div class="payment-options">${
-    optionCard("pix", "PIX", "Aprovação imediata") +
-    optionCard("cartao", "Cartão de crédito", "Parcele em até 6x") +
-    optionCard("boleto", "Boleto bancário", "Pagamento à vista")
+    optionCard("pix", "PIX", "Aprovação imediata · QR Code e Copia e Cola") +
+    optionCard("cartao", "Cartão de crédito", "Parcelamento em até 6x") +
+    optionCard("boleto", "Boleto bancário", "Pagamento à vista com compensação")
   }</div>${dynamicPanel}</section>`;
 }
 
